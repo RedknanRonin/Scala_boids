@@ -20,7 +20,7 @@ class world {
     this.printBoids
     for each <- listOfBoids do
       each.move()
-      boidsGUI.drawBoid(each.pos)
+      boidsGUI.drawBoidAt(each.pos)
 
 
 

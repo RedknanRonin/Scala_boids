@@ -1,4 +1,5 @@
 package main
+import scalafx.animation.AnimationTimer
 import scalafx.application.JFXApp3
 import scalafx.geometry.{Insets, Orientation, Pos}
 import scalafx.scene.Scene
@@ -8,26 +9,41 @@ import scalafx.scene.layout.{BorderPane, HBox, VBox}
 import scalafx.scene.paint.Color
 import scalafx.scene.text.{Font, FontWeight}
 
-import scala.math.{pow, random}
-
+import scala.math.pow
+import scala.util.Random
 
 
 object boidsGUI extends JFXApp3:
 
   val WORLD = world()
   val canvas = Canvas(WORLD.windowWidth, WORLD.windowHeight)
+  val gc=canvas.graphicsContext2D
+  val randomSeed= Random(69420)
 
-  def drawBoid(at:Point) =
-      canvas.graphicsContext2D.fill = Color.Blue
-      canvas.graphicsContext2D.fillOval(at.x,at.y,10,10)
+  def drawBoidAt(at:Point) =
+      gc.fill = Color.Blue
+      gc.fillOval(at.x,at.y,10,10)
+
 
   def tick =
     WORLD.printBoids
+    gc.clearRect(0,0,canvas.width.value,canvas.height.value)
     for each <- WORLD.listOfBoids do
       each.move()
-      drawBoid(each.pos)
+      drawBoidAt(each.pos)
+    Thread.sleep(100)
 
   var paused=true
+  var lastTime = System.nanoTime()
+
+  val timer = AnimationTimer(time => {
+    val deltaTime = (time - lastTime)
+    lastTime = time
+    gc.clearRect(0,0,canvas.width.value,canvas.height.value)
+    for each <- WORLD.listOfBoids do
+      each.move()
+      drawBoidAt(each.pos)
+  })
 
   def pause()=
     if paused then
@@ -38,9 +54,7 @@ object boidsGUI extends JFXApp3:
 
   def run() =
     while !paused do
-      Thread.sleep(200)
       tick
-
 
 
 
@@ -69,15 +83,17 @@ object boidsGUI extends JFXApp3:
     val pauseButton= new ToggleButton("Run")
 
     val saveButton = new Button("Save"):
-      this.onMouseReleased = (event) => for i<- 0 until 10 do tick
+      this.onMouseReleased = (event) =>
+            timer.start()
+
 
     val loadButton = new Button("Load")
 
     val spawnBoids= new Button("Spawn boid"):
       this.onMouseReleased = (event) =>
-        val point=Point(100,100)
+        val point=Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
         WORLD.spawnBoid(Boid(point,point.+(100)))
-        drawBoid(point)
+        drawBoidAt(point)
 
 
     val buttons = new VBox(20):
@@ -156,12 +172,14 @@ object boidsGUI extends JFXApp3:
     pauseButton.onMouseReleased = (event) =>
       pause()
       if paused then
+        timer.stop()
         pauseButton.text="Run"
         updateLog("Paused")
       else
         pauseButton.text="Pause"
         updateLog("Unpaused")
-      run()
+        timer.start()
+
 
     mutationChanceSlider.onMouseReleased  = (event) =>
       mutationChance=mutationChanceSlider.value.get().toString.take(4)

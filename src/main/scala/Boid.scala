@@ -71,10 +71,13 @@ class Boid(var pos:Point, var acceleration:Point) {
 
     if (pos.x > maxX) then pos=Point(pos.x-maxX,pos.y)
     if acceleration.x > maxX then acceleration=Point(acceleration.x-maxX,acceleration.y)
+    
     if (pos.x < 0) then pos=Point(pos.x+maxX,pos.y)
     if acceleration.x < 0 then acceleration=Point(acceleration.x+maxX,acceleration.y)
+    
     if (pos.y > maxY) then pos=Point(pos.x,pos.y-maxY)
     if acceleration.y > maxY then acceleration=Point(acceleration.x,acceleration.y-maxY)
+    
     if (pos.y < 0) then pos=Point(pos.x,pos.y + maxY)
     if acceleration.y < 0 then acceleration=Point(acceleration.x,acceleration.y+maxY)
 
