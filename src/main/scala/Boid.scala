@@ -15,16 +15,16 @@ case class Point(x:Double, y:Double){
   def *(number:Double) = Point(x*number,y*number)
   def distanceTo(other:Point)= math.sqrt(math.pow(other.x-this.x,2)+math.pow(other.y-this.y,2))
 
-  def unitVectorTowards(other:Point) = other.-(this)./(this.distanceTo(other))
+  def unitVectorTowards(other: Point): Point = other.-(this)./(this.distanceTo(other))
 
 }
 
-class Boid(var pos:Point, var acceleration:Point) {
+class Boid(var pos:Point, var acceleration:Point,World:world) {
   var speed:Double=5
   var fov:(Double)= 100.0
   var seperationWeight=30.0
-  var coherenceWeight=1.0
-  var alignmentWeight= 1.0
+  var coherenceWeight=10.0
+  var alignmentWeight= 10.0
 
 
   val seperationActivationDistance=10
@@ -37,12 +37,14 @@ class Boid(var pos:Point, var acceleration:Point) {
 
   var visibleBoids : Array[Boid] = Array[Boid]()
 
+
   def updateVisibleBoids =    // this is a temporary solution, should be reworked at some point
     var tmp=Array[Boid]()
-    for each <- world().listOfBoids.filter(a=>a!=this) do
+    for each <- World.listOfBoids.filter(a=>a!=this) do
       if pos.distanceTo(each.pos) < fov then
-        tmp:+=(each)
+        tmp=tmp.appended(each)
     this.visibleBoids=tmp
+
 
 
   def seperation: (Point,Double) =             // returns a unit vector that pushes boid away from others and the average speed of other boids
@@ -50,9 +52,9 @@ class Boid(var pos:Point, var acceleration:Point) {
     var mid:Point=pos
     for each <- visibleBoids do
       speedSum+=each.speed
-      if pos.distanceTo(each.pos)< seperationActivationDistance  then
+      if pos.distanceTo(each.pos) < seperationActivationDistance  then
         mid=mid.-(mid.unitVectorTowards(each.pos))
-    (pos.unitVectorTowards(mid./(visibleBoids.length)),speedSum/(visibleBoids.length+1))
+    (pos.unitVectorTowards(mid./(visibleBoids.length)),speedSum/(visibleBoids.length))
 
   // returns a unit vector towards the average location of the boids visible to current boid.
   def cohesion: Point =
@@ -89,10 +91,9 @@ class Boid(var pos:Point, var acceleration:Point) {
       acceleration=acceleration.+(seperationVector.*(seperationWeight))
       acceleration=acceleration.+(cohesionVector.*(coherenceWeight))
     else
-      acceleration=acceleration.*(1.1)
+      acceleration=acceleration+speed
 
 //having acceleration be a point makes some calculations easier
-
 
   // Changes the boids location to a new one based on the acceleration vector and its speed
   def move() =
@@ -107,18 +108,5 @@ class Boid(var pos:Point, var acceleration:Point) {
   override def toString()=
     s"Location: (${pos.x.round},${pos.y.round}) acceleration: (${acceleration.x.round},${acceleration.y.round}) length: ${pos.distanceTo(acceleration)}  speed: ${this.speed}"
 }
-  // animation timer
-@main def test() =
-  val testBoid=Boid(Point(100,100),Point(110,110))
-  val otherBoid=Boid(Point(101,101),Point(110,110))
-  val w=world()
-  otherBoid.setSpeed(20)
-  w.spawnBoid(testBoid)
-  w.spawnBoid(otherBoid)
-  w.printBoids
-  w.tick()
-  for each <- testBoid.visibleBoids do println("as "+each)
-  w.printBoids
 
 // todo: boid eating?, evolution?, reproduction?, seeking food?
-// todo maybe still get basic boids working first

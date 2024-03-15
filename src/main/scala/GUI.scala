@@ -19,44 +19,45 @@ object boidsGUI extends JFXApp3:
   val canvas = Canvas(WORLD.windowWidth, WORLD.windowHeight)
   val gc=canvas.graphicsContext2D
   val randomSeed= Random(69420)
+  var drawViewLine: Boolean= true
+  var paused=true
+  var drawViewCircle = true
 
-  def drawBoidAt(at:Point) =
+  def drawBoid(boid:Boid) =
+      val at = boid.pos
+      var dest = boid.acceleration
+      val fov=boid.fov
       gc.fill = Color.Blue
       gc.fillOval(at.x,at.y,10,10)
+      if drawViewLine then gc.strokeLine(at.x+5,at.y+5,dest.x,dest.y)
+      if drawViewCircle then gc.strokeOval(at.x-fov/2+5,at.y-fov/2+5,fov,fov)
 
 
   def tick =
-    WORLD.printBoids
-    gc.clearRect(0,0,canvas.width.value,canvas.height.value)
     for each <- WORLD.listOfBoids do
       each.move()
-      drawBoidAt(each.pos)
-    Thread.sleep(100)
+      drawBoid(each)
 
-  var paused=true
+
+
+
   var lastTime = System.nanoTime()
 
   val timer = AnimationTimer(time => {
     val deltaTime = (time - lastTime)
     lastTime = time
     gc.clearRect(0,0,canvas.width.value,canvas.height.value)
-    for each <- WORLD.listOfBoids do
-      each.move()
-      drawBoidAt(each.pos)
+    tick
+
   })
 
   def pause()=
     if paused then
       paused=false
     else paused=true
-
     WORLD.setPause(paused)
 
-  def run() =
-    while !paused do
-      tick
-
-
+//todo: Why do they eat each other
 
   def start() =
     stage = new JFXApp3.PrimaryStage:
@@ -67,33 +68,34 @@ object boidsGUI extends JFXApp3:
 
     val firstLog = new Label(""):
       font = Font("System", FontWeight.ExtraBold, 14)
-
     val secondLog = new Label("")
+    val thirdLog = new Label ("")
+
+
 
     def updateLog(text:String)=
+      thirdLog.text=secondLog.text.value
       secondLog.text = firstLog.text.value
       firstLog.text = text
 
     val logPanel = new VBox:
-      prefHeight = 80
       margin = Insets(10)
-      children = Array(Separator(Orientation.Horizontal),firstLog, secondLog)
+      children = Array(Separator(Orientation.Horizontal),firstLog, secondLog,thirdLog)
 
 
     val pauseButton= new ToggleButton("Run")
 
-    val saveButton = new Button("Save"):
-      this.onMouseReleased = (event) =>
-            timer.start()
+    val saveButton = new Button("Save")
 
 
     val loadButton = new Button("Load")
 
     val spawnBoids= new Button("Spawn boid"):
       this.onMouseReleased = (event) =>
+        updateLog("Spawned boid")
         val point=Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
-        WORLD.spawnBoid(Boid(point,point.+(100)))
-        drawBoidAt(point)
+        WORLD.spawnBoid(Boid(point,point.+(100),WORLD))
+        drawBoid(Boid(point,point.+(100),WORLD))
 
 
     val buttons = new VBox(20):
@@ -101,19 +103,33 @@ object boidsGUI extends JFXApp3:
       margin = Insets(5,5,5,20)
 
 
+    val fovToggler = new Button("Show fov")
+    fovToggler.onMouseReleased = (event) => drawViewCircle= !drawViewCircle
+
+    val lineToggler = new Button("Show direction")
+    lineToggler.onMouseReleased = (event)=> drawViewLine= !drawViewLine
+
+    val boidCount = new Button("Boids: "+WORLD.listOfBoids.length)
+    boidCount.onMouseReleased = (event)=> boidCount.text=("Boids: "+WORLD.listOfBoids.length)
 
 
 
-    val avoidanceSlider = new Slider(0,1,0.5):
+    val togglers = new HBox(10):
+      children = Array(fovToggler,lineToggler,boidCount)
+      margin = Insets(5,5,5,5)
+
+
+
+    val avoidanceSlider = new Slider(0,30,10):
       this.autosize()
 
     val avoidanceSliderInBox= new VBox(Label("Avoidance"),avoidanceSlider)
 
-    val coherenceSlider = new Slider(0,1,0.5):
+    val coherenceSlider = new Slider(0,30,10):
       this.autosize()
     val coherenceSliderInBox= new VBox(Label("Coherence"),coherenceSlider)
 
-    val alignmentSlider = new Slider(0,1,0.5):
+    val alignmentSlider = new Slider(0,30,10):
       this.autosize()
     val alignmentSliderInBox= new VBox(Label("Alignment"),alignmentSlider)
 
@@ -122,7 +138,7 @@ object boidsGUI extends JFXApp3:
         WORLD.setMutationChance(this.value.get())
       this.autosize()
 
-    val fovSlider= new Slider(0,360,180):
+    val fovSlider= new Slider(1,360,180):
       this.autosize()
 
     var fov=fovSlider.value.get().round.toString
@@ -141,9 +157,10 @@ object boidsGUI extends JFXApp3:
 
 
     val boidShowcase=Canvas(150,170)
-
     boidShowcase.graphicsContext2D.fill = Color.Blue
     boidShowcase.graphicsContext2D.fillRect(0, 0, 150, 170)
+
+
 
 
     val sliders = new VBox(10):
@@ -153,11 +170,7 @@ object boidsGUI extends JFXApp3:
       prefHeight = 700
       prefWidth  = 300
       margin = Insets(10,40,10,10)
-      children=Array(HBox(boidShowcase,buttons),sliders ,logPanel)
-
-// atm the world is a canvas, might need to be changed.
-
-//todo: chart to show amount of different boids?
+      children=Array(HBox(boidShowcase,buttons),togglers,sliders ,logPanel)
 
 
     val boidWorld = new HBox:
@@ -187,14 +200,28 @@ object boidsGUI extends JFXApp3:
       updateLog("Changed mutation chance")
 
     foodSpawnrateSlider.onMouseReleased = (event) =>
+      updateLog("Changed food spawnrate")
       foodSpawnrate=foodSpawnrateSlider.value.get().round.toString.take(4)
       foodSpawnrateLabel.text =("Food spawnrate: "+foodSpawnrate+"/min")
 
     fovSlider.onMouseReleased =  (event) =>
+      updateLog("Changed fov")
       fov=fovSlider.value.get().round.toString
       fovLabel.text = ("FOV: "+fov)
+      for each <- WORLD.listOfBoids do each.setFov(fovSlider.value.get())
 
+    alignmentSlider.onMouseReleased = (event) =>
+      for each <- WORLD.listOfBoids do
+      each.setAlignment(alignmentSlider.value.get())
+      updateLog("Changed alignment")
+    coherenceSlider.onMouseReleased = (event) =>
+      for each <- WORLD.listOfBoids do each.setCoherence(coherenceSlider.value.get())
+      updateLog("Changed coherence")
 
+    avoidanceSlider.onMouseReleased = (event) =>
+      updateLog("Changed avoidance")
+      for each <- WORLD.listOfBoids do each.setSeperation(avoidanceSlider.value.get())
+    // atm they affect all boids, sould they be made to affect only singles?
 
   end start
 

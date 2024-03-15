@@ -15,12 +15,6 @@ class world {
   def printBoids= for i <- listOfBoids.indices do println(i +" "+listOfBoids(i))
 
 
-  def tick()=
-    println("boids: " + listOfBoids.length)
-    this.printBoids
-    for each <- listOfBoids do
-      each.move()
-      boidsGUI.drawBoidAt(each.pos)
 
 
 
