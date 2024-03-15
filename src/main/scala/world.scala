@@ -1,8 +1,8 @@
 package main
 
 class world {
-  val windowHeight= 750
-  val windowWidth= 750
+  val windowHeight= 680
+  val windowWidth= 745
   var mutationChance:Double=0
   private var paused: Boolean = false
 
@@ -14,8 +14,10 @@ class world {
   def getBoid(number:Int) =  listOfBoids(number)
   def printBoids= for i <- listOfBoids.indices do println(i +" "+listOfBoids(i))
 
+  def getBoidAt(at:Point) =
+    val boidsWithPos:Map[Point,Boid]=listOfBoids.map(a=> a.pos -> a).toMap  // returns a boid at a given point
+    boidsWithPos.lift(at).get
 
-
-
+  def deleteBoid(at:Point) = listOfBoids.filter(a => a!=getBoidAt(at))
 
 }

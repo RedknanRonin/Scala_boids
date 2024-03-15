@@ -13,8 +13,8 @@ case class Point(x:Double, y:Double){
   def -(otherPoint:Point) = Point(x-otherPoint.x,y-otherPoint.y)
   def /(number:Double) = Point(x/number,y/number)
   def *(number:Double) = Point(x*number,y*number)
-  def distanceTo(other:Point)= math.sqrt(math.pow(other.x-this.x,2)+math.pow(other.y-this.y,2))
 
+  def distanceTo(other:Point)= math.sqrt(math.pow(other.x-this.x,2)+math.pow(other.y-this.y,2))
   def unitVectorTowards(other: Point): Point = other.-(this)./(this.distanceTo(other))
 
 }
@@ -22,10 +22,9 @@ case class Point(x:Double, y:Double){
 class Boid(var pos:Point, var acceleration:Point,World:world) {
   var speed:Double=5
   var fov:(Double)= 100.0
-  var seperationWeight=30.0
+  var seperationWeight=10.0
   var coherenceWeight=10.0
   var alignmentWeight= 10.0
-
 
   val seperationActivationDistance=10
 
@@ -43,19 +42,53 @@ class Boid(var pos:Point, var acceleration:Point,World:world) {
     for each <- World.listOfBoids.filter(a=>a!=this) do
       if pos.distanceTo(each.pos) < fov then
         tmp=tmp.appended(each)
-    this.visibleBoids=tmp
+      visibleBoids=tmp
 
 
+  // returns a unit vector for seperation, new value for speed, unit vector for cohesion
 
-  def seperation: (Point,Double) =             // returns a unit vector that pushes boid away from others and the average speed of other boids
+  def getMovementVectors: (Point,Double,Point) =
+    var amount = visibleBoids.length
+    var x = 0.0
+    var y = 0.0
+
     var speedSum=0.0
     var mid:Point=pos
+
     for each <- visibleBoids do
+      x += each.pos.x
+      y += each.pos.y
       speedSum+=each.speed
       if pos.distanceTo(each.pos) < seperationActivationDistance  then
         mid=mid.-(mid.unitVectorTowards(each.pos))
-    (pos.unitVectorTowards(mid./(visibleBoids.length)),speedSum/(visibleBoids.length))
+    val aversion=pos.unitVectorTowards(mid./(visibleBoids.length))
+    val speed=speedSum/(visibleBoids.length)
+    val cohesion =  pos.unitVectorTowards(Point(x / amount, y / amount))
+    (aversion,speed,cohesion)
 
+
+  // moves the boid across the edges of the frame, also shifts velocity vector accordingly
+  def moveAcrossFrame(): Unit = {
+  val maxX = World.windowWidth
+  val maxY = World.windowHeight
+
+  if (pos.x > maxX) then
+    pos = Point(pos.x - maxX, pos.y)
+    acceleration = Point(0, acceleration.y)
+
+  if (pos.x < 0) then
+    pos = Point(pos.x + maxX, pos.y)
+    acceleration = Point(0, acceleration.y)
+
+  if (pos.y > maxY) then
+    pos = Point(pos.x, pos.y - maxY)
+    acceleration = Point(acceleration.x, 0)
+
+  if (pos.y < 0) then
+    pos = Point(pos.x, pos.y + maxY)
+    acceleration = Point(acceleration.x, 0)}
+
+  /*  kept here just incase
   // returns a unit vector towards the average location of the boids visible to current boid.
   def cohesion: Point =
     var amount = visibleBoids.length
@@ -65,28 +98,11 @@ class Boid(var pos:Point, var acceleration:Point,World:world) {
       x += each.pos.x
       y += each.pos.y
     pos.unitVectorTowards(Point(x / amount, y / amount))
+   */
 
-// moves the boid across the edges of the frame, also shifts velocity vector accordingly
-  def moveAcrossFrame() =
-    val maxX=world().windowWidth
-    val maxY=world().windowHeight
-
-    if (pos.x > maxX) then pos=Point(pos.x-maxX,pos.y)
-    if acceleration.x > maxX then acceleration=Point(acceleration.x-maxX,acceleration.y)
-    
-    if (pos.x < 0) then pos=Point(pos.x+maxX,pos.y)
-    if acceleration.x < 0 then acceleration=Point(acceleration.x+maxX,acceleration.y)
-    
-    if (pos.y > maxY) then pos=Point(pos.x,pos.y-maxY)
-    if acceleration.y > maxY then acceleration=Point(acceleration.x,acceleration.y-maxY)
-    
-    if (pos.y < 0) then pos=Point(pos.x,pos.y + maxY)
-    if acceleration.y < 0 then acceleration=Point(acceleration.x,acceleration.y+maxY)
-
-  def applyMovementRules() =
+  def applyMovementRules() =    //todo fix plz
     if visibleBoids.length!=0 then
-      val (seperationVector,newSpeed)= seperation
-      val cohesionVector=cohesion
+      val (seperationVector,newSpeed,cohesionVector)= getMovementVectors
       setSpeed(newSpeed)
       acceleration=acceleration.+(seperationVector.*(seperationWeight))
       acceleration=acceleration.+(cohesionVector.*(coherenceWeight))
@@ -99,10 +115,10 @@ class Boid(var pos:Point, var acceleration:Point,World:world) {
   def move() =
     updateVisibleBoids
     applyMovementRules()
-    val unitVector=pos.unitVectorTowards(acceleration)
-    val scaled=unitVector.*(speed)
-    pos=pos.+(scaled)
+    val unitVectorScaled=pos.unitVectorTowards(acceleration).*(speed)
+    pos=pos.+(unitVectorScaled)
     moveAcrossFrame()
+    if pos.distanceTo(acceleration)>100 then acceleration=pos.+(pos.unitVectorTowards(acceleration).*(100))
 
 // should everything be rendered at the same time? if boids are affected as they go then the changes will affect the movement of others
   override def toString()=

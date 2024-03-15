@@ -24,9 +24,7 @@ object boidsGUI extends JFXApp3:
   var drawViewCircle = true
 
   def drawBoid(boid:Boid) =
-      val at = boid.pos
-      var dest = boid.acceleration
-      val fov=boid.fov
+      val (at,dest,fov) = (boid.pos,boid.acceleration,boid.fov)
       gc.fill = Color.Blue
       gc.fillOval(at.x,at.y,10,10)
       if drawViewLine then gc.strokeLine(at.x+5,at.y+5,dest.x,dest.y)
@@ -35,11 +33,13 @@ object boidsGUI extends JFXApp3:
 
   def tick =
     for each <- WORLD.listOfBoids do
-      each.move()
       drawBoid(each)
+      each.move()
 
-
-
+  def printDebug =
+    println("\nBoids: "+WORLD.listOfBoids.length)
+    println("****************************")
+    for eah<- WORLD.listOfBoids do println(eah)
 
   var lastTime = System.nanoTime()
 
@@ -86,6 +86,7 @@ object boidsGUI extends JFXApp3:
     val pauseButton= new ToggleButton("Run")
 
     val saveButton = new Button("Save")
+    saveButton.onMouseReleased = (event) => printDebug
 
 
     val loadButton = new Button("Load")
@@ -94,9 +95,9 @@ object boidsGUI extends JFXApp3:
       this.onMouseReleased = (event) =>
         updateLog("Spawned boid")
         val point=Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
-        WORLD.spawnBoid(Boid(point,point.+(100),WORLD))
-        drawBoid(Boid(point,point.+(100),WORLD))
-
+        val dest= Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
+        WORLD.spawnBoid(Boid(point,dest,WORLD))
+        drawBoid(Boid(point,dest,WORLD))
 
     val buttons = new VBox(20):
       children=Array(pauseButton,saveButton,loadButton,spawnBoids)
@@ -221,6 +222,8 @@ object boidsGUI extends JFXApp3:
     avoidanceSlider.onMouseReleased = (event) =>
       updateLog("Changed avoidance")
       for each <- WORLD.listOfBoids do each.setSeperation(avoidanceSlider.value.get())
+
+
     // atm they affect all boids, sould they be made to affect only singles?
 
   end start
