@@ -33,8 +33,9 @@ object boidsGUI extends JFXApp3:
 
   def tick =
     for each <- WORLD.listOfBoids do
-      drawBoid(each)
       each.move()
+      drawBoid(each)
+
 
   def printDebug =
     println("\nBoids: "+WORLD.listOfBoids.length)
@@ -55,7 +56,7 @@ object boidsGUI extends JFXApp3:
     if paused then
       paused=false
     else paused=true
-    WORLD.setPause(paused)
+
 
 //todo: Why do they eat each other
 
@@ -121,12 +122,12 @@ object boidsGUI extends JFXApp3:
 
 
 
-    val avoidanceSlider = new Slider(0,30,10):
+    val avoidanceSlider = new Slider(1,50,20):
       this.autosize()
 
     val avoidanceSliderInBox= new VBox(Label("Avoidance"),avoidanceSlider)
 
-    val coherenceSlider = new Slider(0,30,10):
+    val coherenceSlider = new Slider(1,50,10):
       this.autosize()
     val coherenceSliderInBox= new VBox(Label("Coherence"),coherenceSlider)
 
@@ -139,11 +140,11 @@ object boidsGUI extends JFXApp3:
         WORLD.setMutationChance(this.value.get())
       this.autosize()
 
-    val fovSlider= new Slider(1,360,180):
+    val fovSlider= new Slider(1,360,100):
       this.autosize()
 
     var fov=fovSlider.value.get().round.toString
-    val fovLabel= new Label("FOV: 180")
+    val fovLabel= new Label("FOV: 100")
     val fovBox= new VBox(fovLabel,fovSlider)
 
     var mutationChance="0.1"

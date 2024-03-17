@@ -1,14 +1,13 @@
 package main
 
 class world {
-  val windowHeight= 680
-  val windowWidth= 745
+  val windowHeight= 660
+  val windowWidth= 760
   var mutationChance:Double=0
-  private var paused: Boolean = false
 
   var listOfBoids=Array[Boid]()
 
-  def setPause(v:Boolean) = paused=v
+
   def setMutationChance(v:Double) = mutationChance=v
   def spawnBoid (b:Boid) = listOfBoids=listOfBoids.appended(b)
   def getBoid(number:Int) =  listOfBoids(number)
@@ -19,5 +18,7 @@ class world {
     boidsWithPos.lift(at).get
 
   def deleteBoid(at:Point) = listOfBoids.filter(a => a!=getBoidAt(at))
+
+  def tickForTest= for each<- listOfBoids do each.move()
 
 }

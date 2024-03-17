@@ -7,3 +7,5 @@ lazy val root = (project in file("."))
     name := "Boids"
   )
 libraryDependencies += "org.scalafx" % "scalafx_3" % "20.0.0-R31"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.18"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.18" % "test"
