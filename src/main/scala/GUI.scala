@@ -9,7 +9,7 @@ import scalafx.scene.layout.{BorderPane, HBox, VBox}
 import scalafx.scene.paint.Color
 import scalafx.scene.text.{Font, FontWeight}
 
-import scala.math.pow
+import scala.math.{abs, pow}
 import scala.util.Random
 
 
@@ -18,13 +18,14 @@ object boidsGUI extends JFXApp3:
   val WORLD = world()
   val canvas = Canvas(WORLD.windowWidth, WORLD.windowHeight)
   val gc=canvas.graphicsContext2D
-  val randomSeed= Random(69420)
-  var drawViewLine: Boolean= true
+  val randomSeed= WORLD.seed
+  var drawViewLine: Boolean= false
   var paused=true
-  var drawViewCircle = true
+  var drawViewCircle = false
 
   def drawBoid(boid:Boid) =
-      val (at,dest,fov) = (boid.pos,boid.acceleration,boid.fov)
+      val (at,dest,fov) = (boid.pos,boid.velocity,boid.fov)
+
       gc.fill = Color.Blue
       gc.fillOval(at.x,at.y,10,10)
       if drawViewLine then gc.strokeLine(at.x+5,at.y+5,dest.x,dest.y)
@@ -36,6 +37,9 @@ object boidsGUI extends JFXApp3:
       each.move()
       drawBoid(each)
 
+  def spawnBoid(boid:Boid) =
+    WORLD.spawnBoid(boid)
+    drawBoid(boid)
 
   def printDebug =
     println("\nBoids: "+WORLD.listOfBoids.length)
@@ -58,8 +62,6 @@ object boidsGUI extends JFXApp3:
     else paused=true
 
 
-//todo: Why do they eat each other
-
   def start() =
     stage = new JFXApp3.PrimaryStage:
       title = "Boids"
@@ -71,7 +73,6 @@ object boidsGUI extends JFXApp3:
       font = Font("System", FontWeight.ExtraBold, 14)
     val secondLog = new Label("")
     val thirdLog = new Label ("")
-
 
 
     def updateLog(text:String)=
@@ -91,14 +92,9 @@ object boidsGUI extends JFXApp3:
 
 
     val loadButton = new Button("Load")
+    loadButton.onMouseReleased = (event)=> tick
 
-    val spawnBoids= new Button("Spawn boid"):
-      this.onMouseReleased = (event) =>
-        updateLog("Spawned boid")
-        val point=Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
-        val dest= Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
-        WORLD.spawnBoid(Boid(point,dest,WORLD))
-        drawBoid(Boid(point,dest,WORLD))
+    val spawnBoids= new Button("Spawn boid")
 
     val buttons = new VBox(20):
       children=Array(pauseButton,saveButton,loadButton,spawnBoids)
@@ -122,18 +118,16 @@ object boidsGUI extends JFXApp3:
 
 
 
-    val avoidanceSlider = new Slider(1,50,20):
+    val seperationSlider = new Slider(1,100,30):
       this.autosize()
 
-    val avoidanceSliderInBox= new VBox(Label("Avoidance"),avoidanceSlider)
+    val avoidanceSliderInBox= new VBox(Label("Avoidance"),seperationSlider)
 
-    val coherenceSlider = new Slider(1,50,10):
+    val coherenceSlider = new Slider(1,100,10):
       this.autosize()
     val coherenceSliderInBox= new VBox(Label("Coherence"),coherenceSlider)
 
-    val alignmentSlider = new Slider(0,30,10):
-      this.autosize()
-    val alignmentSliderInBox= new VBox(Label("Alignment"),alignmentSlider)
+
 
     val mutationChanceSlider = new Slider(0,1,0.1):
       this.onMouseReleased =  (event) =>
@@ -166,7 +160,7 @@ object boidsGUI extends JFXApp3:
 
 
     val sliders = new VBox(10):
-      children=Array(avoidanceSliderInBox, coherenceSliderInBox,alignmentSliderInBox, mutationBox,foodSpawnrateBox,fovBox)
+      children=Array(avoidanceSliderInBox, coherenceSliderInBox, mutationBox,foodSpawnrateBox,fovBox)
 
     val settingPane= new VBox(20):
       prefHeight = 700
@@ -212,18 +206,23 @@ object boidsGUI extends JFXApp3:
       fovLabel.text = ("FOV: "+fov)
       for each <- WORLD.listOfBoids do each.setFov(fovSlider.value.get())
 
-    alignmentSlider.onMouseReleased = (event) =>
-      for each <- WORLD.listOfBoids do
-      each.setAlignment(alignmentSlider.value.get())
-      updateLog("Changed alignment")
+
     coherenceSlider.onMouseReleased = (event) =>
       for each <- WORLD.listOfBoids do each.setCoherence(coherenceSlider.value.get())
       updateLog("Changed coherence")
 
-    avoidanceSlider.onMouseReleased = (event) =>
+    seperationSlider.onMouseReleased = (event) =>
       updateLog("Changed avoidance")
-      for each <- WORLD.listOfBoids do each.setSeperation(avoidanceSlider.value.get())
+      for each <- WORLD.listOfBoids do each.setSeperation(seperationSlider.value.get())
 
+    spawnBoids.onMouseReleased = (event) =>
+      updateLog("Spawned boid")
+      val point=Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
+      val dest= Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
+      val aBoid=Boid(point,dest,WORLD)
+      aBoid.setSeperation(seperationSlider.value.get())
+      aBoid.setCoherence(coherenceSlider.value.get())
+      spawnBoid(aBoid)
 
     // atm they affect all boids, sould they be made to affect only singles?
 

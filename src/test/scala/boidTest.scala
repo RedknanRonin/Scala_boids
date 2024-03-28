@@ -18,16 +18,31 @@ class boidTest extends AnyFlatSpec with Matchers:
 
   it should "move away from other boid when they are close" in
   {
-    val testWorld= world()
+      val testWorld= world()
       val testBoid:Boid=Boid(Point(10,10),Point(11,11),testWorld)
       val otherTestBoid:Boid=Boid(Point(11,11),Point(12,12),testWorld)
       testWorld.spawnBoid(testBoid)
+      testWorld.spawnBoid(otherTestBoid)
       testBoid.setSeperation(100)
-      testWorld.tickForTest
+      testWorld.tick
       testBoid.pos.x should be < otherTestBoid.pos.x
       testBoid.pos.y should be < otherTestBoid.pos.y
       otherTestBoid.pos.x shouldNot be (0)
       otherTestBoid.pos.y shouldNot be (0)
+  }
+
+  it should "set speed to average of others" in {
+    val testWorld = world()
+    val testBoid: Boid = Boid(Point(10, 10), Point(11, 11), testWorld)
+    val otherTestBoid: Boid = Boid(Point(11, 11), Point(12, 12), testWorld)
+    testBoid.setSpeed(100)
+    otherTestBoid.setSpeed(50)
+    testWorld.tick
+    testBoid.setMaxSpeed(100)
+    otherTestBoid.setMaxSpeed(100)
+    testBoid.speed should be (75)
+    otherTestBoid.speed should be(75)
+
   }
 
 

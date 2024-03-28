@@ -20,29 +20,30 @@ case class Point(x:Double, y:Double){
 
   def distanceTo(other:Point)= math.sqrt((other.x-x)*(other.x-x)+(other.y-y)*(other.y-y)) //math.sqrt(math.pow(other.x-this.x,2)+math.pow(other.y-this.y,2))
   def unitVectorTowards(other: Point): Point = Point(other.x - this.x, other.y - this.y)./(distanceTo(other))
+  def inverselyProportionalTo(to:Point,withValue:Double):Double = withValue/(this.distanceTo(to))
 
 }
 
-class Boid(var pos:Point, var acceleration:Point,World:world) {
-  var maxSpeed = 7
-  var speed:Double=Random.between(4,maxSpeed)
-  var fov:(Double)= 100.0
-  var seperationWeight:Double=30
-  var coherenceWeight: Double=20
-  var alignmentWeight:Double= 1
+class Boid(var pos:Point, var velocity:Point, World:world) {
 
-  var seperationActivationDistance=20
+  var maxSpeed:Double =  7
+  var minSpeed: Double = 2
+  var speed:Double = Random.between(4,maxSpeed)
+  var fov:(Double) = 100.0
+  var seperationWeight:Double = 10
+  var cohesionWeight: Double = 10
+
 
   def setSeperation(value:Double) = seperationWeight=value
-  def setCoherence(value:Double) = coherenceWeight= value
-  def setAlignment(value:Double) = alignmentWeight=value
+  def setCoherence(value:Double) = cohesionWeight= value
   def setFov(fovValue:Double) = fov=fovValue
   def setSpeed(b:Double)= this.speed=b
+  def setMaxSpeed(v:Double) = maxSpeed=v
 
   var visibleBoids : Array[Boid] = Array[Boid]()
 
 
-  def updateVisibleBoids =    // this is a temporary solution, should be reworked at some point
+  def updateVisibleBoids =
     var tmp=Array[Boid]()
     for each <- World.listOfBoids do
       if each.pos != this.pos then
@@ -50,34 +51,6 @@ class Boid(var pos:Point, var acceleration:Point,World:world) {
           tmp=tmp.appended(each)
     visibleBoids=tmp
 
-
-  // returns a unit vector for seperation, new value for speed, unit vector for cohesion
-
-  def getMovementVectors: (Point,Double,Point) =
-    var amountOfBoids = visibleBoids.length
-    var pointForCohesion=pos
-
-    var speedSum=0.0
-    var pointForSeperation:Point=pos    // todo korjaa tää
-    var changed= false
-
-    for each <- visibleBoids do
-      pointForCohesion=pointForCohesion.+(each.pos)
-      speedSum+=each.speed
-
-      if pos.distanceTo(each.pos) < fov/speed  then  // todo tää arvo
-        changed=true
-        pointForSeperation=pointForSeperation.-(each.pos)   // onko tää se hassu
-
-    val seperation =if changed then  pos.unitVectorTowards(pointForSeperation) else Point(0,0)
-    val speed1 = speedSum/amountOfBoids
-    val cohesion = pos.unitVectorTowards(pointForCohesion./(amountOfBoids))
-
-   /* println(s"pfc $pointForCohesion  +  pfa $pointForSeperation")
-    println(amountOfBoids)
-    println(pointForCohesion)
-    println(s"$seperation +   ${pos.+(cohesion)}")*/
-    (seperation,speed1,cohesion)
 
 
   // moves the boid across the edges of the frame, also shifts velocity vector accordingly
@@ -87,60 +60,76 @@ class Boid(var pos:Point, var acceleration:Point,World:world) {
 
   if (pos.x > maxX) then
     pos = Point(pos.x - maxX, pos.y)
-    acceleration = Point(0, acceleration.y)
+    velocity = Point(velocity.x-maxX, velocity.y)
 
   if (pos.x < 0) then
     pos = Point(pos.x + maxX, pos.y)
-    acceleration = Point(0, acceleration.y)
+    velocity = Point(velocity.x+maxX, velocity.y)
 
   if (pos.y > maxY) then
     pos = Point(pos.x, pos.y - maxY)
-    acceleration = Point(acceleration.x, 0)
+    velocity = Point(velocity.x, velocity.y-maxY)
 
   if (pos.y < 0) then
     pos = Point(pos.x, pos.y + maxY)
-    acceleration = Point(acceleration.x, 0)}
+    velocity = Point(velocity.x, velocity.y+maxY)
+   }
 
-  /*  kept here just incase
-  // returns a unit vector towards the average location of the boids visible to current boid.
-  def cohesion: Point =
-    var amount = visibleBoids.length
-    var x = 0.0
-    var y = 0.0
+
+
+  def enforceSpeedLimits()=
+    if speed > maxSpeed then setSpeed(maxSpeed)
+    if speed < minSpeed then setSpeed(minSpeed)
+
+
+  // returns a unit vector for cohesion, new value for speed and a seperation vector
+  def getMovementVectors: (Point, Double, Point) =
+    val amountOfBoids = visibleBoids.length
+    var pointForCohesion = pos
+    var speedSum = this.speed
+    var pointForSeperation: Point = pos
+
     for each <- visibleBoids do
-      x += each.pos.x
-      y += each.pos.y
-    pos.unitVectorTowards(Point(x / amount, y / amount))
-   */
+      pointForCohesion = pointForCohesion.+(each.pos)
+      speedSum += each.speed
+      pointForSeperation = pointForSeperation.-(pointForSeperation.unitVectorTowards(each.pos).*(pos.inverselyProportionalTo(each.pos,seperationWeight)))
+
+    val seperation = pointForSeperation
+    val speed1 = speedSum / (amountOfBoids + 1)
+    val cohesion = pos.unitVectorTowards(pointForCohesion./(amountOfBoids))
+
+    (seperation, speed1, cohesion)
 
 
-
-  def applyMovementRules() =    //todo fix plz
+  def applyMovementRules() =
     if visibleBoids.length!=0 then
-      val (seperationVector,newSpeed,cohesionVector)= getMovementVectors
-      if speed==newSpeed then setSpeed(speed+Random.between(-0.2,0.2)) else setSpeed(newSpeed)
-      if speed>maxSpeed then setSpeed(maxSpeed)
-      if seperationVector!=this.acceleration then acceleration=acceleration.+(seperationVector.*(seperationWeight))
-      acceleration=acceleration.+(cohesionVector.*(coherenceWeight))
+      val (seperationVector,newSpeed,cohesionVector) = getMovementVectors
+      setSpeed(newSpeed)
+      enforceSpeedLimits()
+      velocity=velocity.+((cohesionVector.*(cohesionWeight)).+(seperationVector))  // todo boids move to the right when flocking
+      if pos.distanceTo(velocity)<speed then velocity=velocity.+(pos.unitVectorTowards(velocity).*(speed))
 
     else   // Boid moves in a straight line
-      val unitVectorTowardsAcceleration =pos.unitVectorTowards(acceleration)
-      acceleration=acceleration.+(unitVectorTowardsAcceleration)*speed
+      setSpeed((speed+Random.between(-0.2,0.2)))
+      enforceSpeedLimits()
+      val unitVectorTowardsVelocity = pos.unitVectorTowards(velocity).+-(World.seed.between(-0.2,0.2))  //adds some noise to movement
+      velocity=velocity.+(unitVectorTowardsVelocity.*(speed))
 
 
 
-  // Changes the boids location to a new one based on the acceleration vector and its speed
+
+  // Changes the boids location to a new one based on the velocity vector and its speed
   def move() =
     updateVisibleBoids
     applyMovementRules()
-    val unitVectorScaled=pos.unitVectorTowards(acceleration).*(speed)
+    if pos.distanceTo(velocity) > 50 then velocity = pos.+((pos.unitVectorTowards(velocity)).*(50))
+    val unitVectorScaled=pos.unitVectorTowards(velocity).*(speed)
     pos=pos.+(unitVectorScaled)
     moveAcrossFrame()
-    if pos.distanceTo(acceleration)!=100 then acceleration=pos.+(pos.unitVectorTowards(acceleration).*(100))
 
-// should everything be rendered at the same time? if boids are affected as they go then the changes will affect the movement of others
-  override def toString()=
-    s"Location: (${pos.x.round},${pos.y.round}) acceleration: (${acceleration.x.round},${acceleration.y.round}) length: ${pos.distanceTo(acceleration)}  speed: ${this.speed}"
+
+  // should everything be rendered at the same time? if boids are affected as they go then the changes will affect the movement of others
+  override def toString= s"Location: (${pos.x.round},${pos.y.round}) acceleration: (${velocity.x.round},${velocity.y.round}) length: ${pos.distanceTo(velocity)}  speed: ${this.speed}"
 }
 
 // todo: boid eating?, evolution?, reproduction?, seeking food?
