@@ -88,15 +88,18 @@ class Boid(var pos:Point, var velocity:Point, World:world) {
     var pointForCohesion = pos
     var speedSum = this.speed
     var pointForSeperation: Point = pos
+    var changed=false
 
     for each <- visibleBoids do
       pointForCohesion = pointForCohesion.+(each.pos)
       speedSum += each.speed
-      pointForSeperation = pointForSeperation.-(pointForSeperation.unitVectorTowards(each.pos).*(pos.inverselyProportionalTo(each.pos,seperationWeight)))
+      if pos.distanceTo(velocity)>fov/speed then
+        changed=true
+        pointForSeperation = pointForSeperation.-(pos.unitVectorTowards(each.pos))//.*(pos.inverselyProportionalTo(each.pos,seperationWeight)))
 
-    val seperation = pointForSeperation
+    val seperation = if changed then pos.unitVectorTowards(pointForSeperation) else Point(0,0)
     val speed1 = speedSum / (amountOfBoids + 1)
-    val cohesion = pos.unitVectorTowards(pointForCohesion./(amountOfBoids))
+    val cohesion = pos.unitVectorTowards(pointForCohesion./(amountOfBoids+1))
 
     (seperation, speed1, cohesion)
 
@@ -106,7 +109,7 @@ class Boid(var pos:Point, var velocity:Point, World:world) {
       val (seperationVector,newSpeed,cohesionVector) = getMovementVectors
       setSpeed(newSpeed)
       enforceSpeedLimits()
-      velocity=velocity.+((cohesionVector.*(cohesionWeight)).+(seperationVector))  // todo boids move to the right when flocking
+      velocity=velocity.+(cohesionVector.*(cohesionWeight)).+(seperationVector.*(seperationWeight))  // todo boids move to the right when flocking
       if pos.distanceTo(velocity)<speed then velocity=velocity.+(pos.unitVectorTowards(velocity).*(speed))
 
     else   // Boid moves in a straight line

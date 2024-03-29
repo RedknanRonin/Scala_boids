@@ -123,7 +123,7 @@ object boidsGUI extends JFXApp3:
 
     val avoidanceSliderInBox= new VBox(Label("Avoidance"),seperationSlider)
 
-    val coherenceSlider = new Slider(1,100,10):
+    val coherenceSlider = new Slider(1,100,20):
       this.autosize()
     val coherenceSliderInBox= new VBox(Label("Coherence"),coherenceSlider)
 
