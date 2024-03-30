@@ -7,7 +7,6 @@ import scalafx.scene.canvas.Canvas
 import scalafx.scene.control.{Button, ColorPicker, Label, Menu, MenuBar, MenuItem, RadioButton, Separator, Slider, Spinner, ToggleButton, ToggleGroup}
 import scalafx.scene.layout.{BorderPane, HBox, VBox}
 import scalafx.scene.paint.Color
-import scalafx.scene.shape.Polygon
 import scalafx.scene.text.{Font, FontWeight}
 
 import scala.math.{abs, pow}
@@ -17,50 +16,69 @@ object boidsGUI extends JFXApp3:
 
   val WORLD = world()
   val canvas = Canvas(WORLD.windowWidth, WORLD.windowHeight)
-  val gc=canvas.graphicsContext2D
-  val randomSeed= WORLD.seed
-  var drawViewLine: Boolean= false
-  var paused=true
+
+  val gc = canvas.graphicsContext2D
+  val randomSeed = WORLD.seed
+  var drawViewLine: Boolean = false
+  var paused = true
   var drawViewCircle = false
+  var allowFoodSpawnsAndSimulation = WORLD.simulationWorldEnabled
 
   def drawBoid(boid:Boid) =
       val (at,dest,fov) = (boid.pos,boid.velocity,boid.fov)
       val unitVtoDest=at.unitVectorTowards(dest)
-      val top=at.+(unitVtoDest.*(10))
-      val btLeft=at.-(unitVtoDest*10).minusx(unitVtoDest.x*10)
-      val btRight=at.-(unitVtoDest*10).plusx(unitVtoDest.x*10)
+      val top=at.+(unitVtoDest.*(20))
+      val btLeft=at.+(unitVtoDest.perpendicular.*(5))
+      val btRight=at.-(unitVtoDest.perpendicular.*(5))
 
       gc.fill = boid.getColour
     //  gc.fillOval(at.x,at.y,10,10)
       gc.fillPolygon(Array((top.x,top.y),(btRight.x,btRight.y),(btLeft.x,btLeft.y)))
 
-      if drawViewLine then gc.strokeLine(at.x+5,at.y+5,dest.x+5,dest.y+5)
-      if drawViewCircle then gc.strokeOval(at.x-fov/2+5,at.y-fov/2+5,fov,fov)
+      if drawViewLine then gc.strokeLine(at.x,at.y,dest.x,dest.y)
+      if drawViewCircle then gc.strokeOval(at.x-fov/2,at.y-fov/2,fov,fov)
 
 
   def tick =
     for each <- WORLD.listOfBoids do
       each.move()
       drawBoid(each)
+    if WORLD.simulationWorldEnabled then
+      WORLD.updateFoodTimer
+      for each <- WORLD.listOfFoods do
+        drawFood(each)
 
   def spawnBoid(boid:Boid) =
     WORLD.spawnBoid(boid)
     drawBoid(boid)
 
+  def drawFood(food:Food)=   //todo: implement food
+    val pos=food.pos
+    gc.fill=Color.Red
+    gc.fillOval(pos.x, pos.y, 10, 10)
+
+
+
   def printDebug =
+    println("****************************")
     println("\nBoids: "+WORLD.listOfBoids.length)
     println("****************************")
     for eah<- WORLD.listOfBoids do println(eah)
+    println("****************************")
+    println("FOODS: "+WORLD.listOfFoods.length)
+    for eac <- WORLD.listOfFoods do println(eac)
+
+
 
   var lastTime = System.nanoTime()
-
   val timer = AnimationTimer(time => {
     val deltaTime = (time - lastTime)
     lastTime = time
     gc.clearRect(0,0,canvas.width.value,canvas.height.value)
     gc.fill = Color.Gray
     gc.fillRect(0,0,canvas.width.value,canvas.height.value)
-    tick
+    tick   //tick should utilize deltaTime
+
 
   })
 
@@ -73,14 +91,14 @@ object boidsGUI extends JFXApp3:
   def start() =
     stage = new JFXApp3.PrimaryStage:
       title = "Boids"
-      width = 1100   //values loosely based on golden ratio
+      width = 1100 //values loosely based on golden ratio
       height = 680
       resizable = false
 
     val firstLog = new Label(""):
       font = Font("System", FontWeight.ExtraBold, 14)
     val secondLog = new Label("")
-    val thirdLog = new Label ("")
+    val thirdLog = new Label("")
 
 
     def updateLog(text:String)=
@@ -96,11 +114,15 @@ object boidsGUI extends JFXApp3:
     val pauseButton= new ToggleButton("Run")
 
     val saveButton = new Button("Save")
-    saveButton.onMouseReleased = (event) => printDebug
+    saveButton.onMouseReleased = (event) =>
+      updateLog("Saving")
+      printDebug
 
 
     val loadButton = new Button("Load")
-    loadButton.onMouseReleased = (event)=> tick
+    loadButton.onMouseReleased = (event)=>
+      updateLog("Load")
+      tick
 
     val spawnBoids= new Button("Spawn boid")
 
@@ -110,18 +132,25 @@ object boidsGUI extends JFXApp3:
 
 
     val fovToggler = new Button("Show fov")
-    fovToggler.onMouseReleased = (event) => drawViewCircle= !drawViewCircle
+    fovToggler.onMouseReleased = (event) =>
+      updateLog("Toggled fov")
+      drawViewCircle= !drawViewCircle
 
     val lineToggler = new Button("Show direction")
-    lineToggler.onMouseReleased = (event)=> drawViewLine= !drawViewLine
+    lineToggler.onMouseReleased = (event)=>
+      updateLog("Toggled direction")
+      drawViewLine= !drawViewLine
 
-    val boidCount = new Button("Boids: "+WORLD.listOfBoids.length)
-    boidCount.onMouseReleased = (event)=> boidCount.text=("Boids: "+WORLD.listOfBoids.length)
+    val simulationModeButton = new Button("Free mode")
+    simulationModeButton.onMouseReleased = (event)=>
+      WORLD.toggleSimulation
+      simulationModeButton.text = if WORLD.simulationWorldEnabled then ("Free mode") else ("Simulation mode")
+
 
 
 
     val togglers = new HBox(10):
-      children = Array(fovToggler,lineToggler,boidCount)
+      children = Array(fovToggler,lineToggler,simulationModeButton)
       margin = Insets(5,5,5,5)
 
 
@@ -142,6 +171,10 @@ object boidsGUI extends JFXApp3:
         WORLD.setMutationChance(this.value.get())
       this.autosize()
 
+    var mutationChance = mutationChanceSlider.value.get()
+    val mutationChanceLabel = new Label("Mutation chance: " + mutationChance)
+    val mutationBox = VBox(mutationChanceLabel, mutationChanceSlider)
+
     val fovSlider= new Slider(1,360,100):
       this.autosize()
 
@@ -149,14 +182,12 @@ object boidsGUI extends JFXApp3:
     val fovLabel= new Label("FOV: 100")
     val fovBox= new VBox(fovLabel,fovSlider)
 
-    var mutationChance="0.1"
-    val mutationChanceLabel= new Label("Mutation chance: "+mutationChance)
-    val mutationBox = VBox(mutationChanceLabel,mutationChanceSlider)
 
-    val foodSpawnrateSlider = new Slider(0,60,3):      // food/60s? Random times??
+
+    val foodSpawnrateSlider = new Slider(20,300,150):      //todo what values for this
       this.autosize()
-    var foodSpawnrate="10"
-    val foodSpawnrateLabel= new Label("Food spawnrate: "+foodSpawnrate.toString.take(4)+"/min")
+    var foodSpawnrate=foodSpawnrateSlider.value.get().toInt
+    val foodSpawnrateLabel= new Label("Food spawnrate: "+foodSpawnrate.toString.take(4))
     val foodSpawnrateBox = new VBox(foodSpawnrateLabel,foodSpawnrateSlider)
 
 
@@ -199,14 +230,16 @@ object boidsGUI extends JFXApp3:
 
 
     mutationChanceSlider.onMouseReleased  = (event) =>
-      mutationChance=mutationChanceSlider.value.get().toString.take(4)
-      mutationChanceLabel.text = ("Mutation chance: "+mutationChance)
+      mutationChance=mutationChanceSlider.value.get()
+      mutationChanceLabel.text = ("Mutation chance: "+mutationChance.toString.take(4))
       updateLog("Changed mutation chance")
 
-    foodSpawnrateSlider.onMouseReleased = (event) =>
+    foodSpawnrateSlider.onMouseReleased = (event) =
       updateLog("Changed food spawnrate")
-      foodSpawnrate=foodSpawnrateSlider.value.get().round.toString.take(4)
-      foodSpawnrateLabel.text =("Food spawnrate: "+foodSpawnrate+"/min")
+      WORLD.setFoodInterval(foodSpawnrateSlider.value.get().toInt)
+      foodSpawnrateLabel.text =("Food spawnrate: "+foodSpawnrateSlider.value.get().toInt)
+      WORLD.foodTimer=0
+
 
     fovSlider.onMouseReleased =  (event) =>
       updateLog("Changed fov")
