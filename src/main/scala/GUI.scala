@@ -7,10 +7,10 @@ import scalafx.scene.canvas.Canvas
 import scalafx.scene.control.{Button, ColorPicker, Label, Menu, MenuBar, MenuItem, RadioButton, Separator, Slider, Spinner, ToggleButton, ToggleGroup}
 import scalafx.scene.layout.{BorderPane, HBox, VBox}
 import scalafx.scene.paint.Color
+import scalafx.scene.shape.Polygon
 import scalafx.scene.text.{Font, FontWeight}
 
 import scala.math.{abs, pow}
-import scala.util.Random
 
 
 object boidsGUI extends JFXApp3:
@@ -25,10 +25,16 @@ object boidsGUI extends JFXApp3:
 
   def drawBoid(boid:Boid) =
       val (at,dest,fov) = (boid.pos,boid.velocity,boid.fov)
+      val unitVtoDest=at.unitVectorTowards(dest)
+      val top=at.+(unitVtoDest.*(10))
+      val btLeft=at.-(unitVtoDest*10).minusx(unitVtoDest.x*10)
+      val btRight=at.-(unitVtoDest*10).plusx(unitVtoDest.x*10)
 
       gc.fill = boid.getColour
-      gc.fillOval(at.x,at.y,10,10)
-      if drawViewLine then gc.strokeLine(at.x+5,at.y+5,dest.x,dest.y)
+    //  gc.fillOval(at.x,at.y,10,10)
+      gc.fillPolygon(Array((top.x,top.y),(btRight.x,btRight.y),(btLeft.x,btLeft.y)))
+
+      if drawViewLine then gc.strokeLine(at.x+5,at.y+5,dest.x+5,dest.y+5)
       if drawViewCircle then gc.strokeOval(at.x-fov/2+5,at.y-fov/2+5,fov,fov)
 
 
