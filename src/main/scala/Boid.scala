@@ -24,23 +24,28 @@ case class Point(x:Double, y:Double){
 
 }
 
-class Boid(var pos:Point, var velocity:Point, World:world) {
+class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight:Double = 10,var cohesionWeight: Double = 10,var fov:(Double) = 100.0) {
 
   var maxSpeed:Double =  7
   var minSpeed: Double = 2
   var speed:Double = Random.between(4,maxSpeed)
-  var fov:(Double) = 100.0
-  var seperationWeight:Double = 10
-  var cohesionWeight: Double = 10
-
 
   def setSeperation(value:Double) = seperationWeight=value
   def setCoherence(value:Double) = cohesionWeight= value
   def setFov(fovValue:Double) = fov=fovValue
   def setSpeed(b:Double)= this.speed=b
   def setMaxSpeed(v:Double) = maxSpeed=v
-
   var visibleBoids : Array[Boid] = Array[Boid]()
+
+  def normalize(value:Double,min:Double,max:Double) = (value-min)/(max-min)
+
+  def getColour:Color=
+    val speed10 = speed*36
+    val r=1-normalize(seperationWeight+fov,1,460)
+    val g=1-normalize(cohesionWeight,1,100)
+    val b=1-normalize(fov,1,360)
+    Color(r,g,b,1)
+
 
 
   def updateVisibleBoids =
@@ -119,8 +124,6 @@ class Boid(var pos:Point, var velocity:Point, World:world) {
       velocity=velocity.+(unitVectorTowardsVelocity.*(speed))
 
 
-
-
   // Changes the boids location to a new one based on the velocity vector and its speed
   def move() =
     updateVisibleBoids
@@ -131,8 +134,16 @@ class Boid(var pos:Point, var velocity:Point, World:world) {
     moveAcrossFrame()
 
 
+  def saveThis()=Boid(pos,velocity,World,seperationWeight,cohesionWeight,fov)
+    
+
+
+
   // should everything be rendered at the same time? if boids are affected as they go then the changes will affect the movement of others
   override def toString= s"Location: (${pos.x.round},${pos.y.round}) acceleration: (${velocity.x.round},${velocity.y.round}) length: ${pos.distanceTo(velocity)}  speed: ${this.speed}"
 }
 
 // todo: boid eating?, evolution?, reproduction?, seeking food?
+//todo: io, evolution
+
+//class food(pos:Point)
