@@ -19,24 +19,27 @@ object boidsGUI extends JFXApp3:
 
   val gc = canvas.graphicsContext2D
   val randomSeed = WORLD.seed
-  var drawViewLine: Boolean = false
+  var drawFovLines: Boolean = false
   var paused = true
-  var drawViewCircle = false
   var allowFoodSpawnsAndSimulation = WORLD.simulationWorldEnabled
 
   def drawBoid(boid:Boid) =
-      val (at,dest,fov) = (boid.pos,boid.velocity,boid.fov)
+      val (at,dest,fov) = (boid.pos,boid.velocity,boid.viewRange)
       val unitVtoDest=at.unitVectorTowards(dest)
+
       val top=at.+(unitVtoDest.*(20))
       val btLeft=at.+(unitVtoDest.perpendicular.*(5))
       val btRight=at.-(unitVtoDest.perpendicular.*(5))
 
+      val (leftEnd,rightEnd) = boid.calculateFOVEndpoints
+
+
       gc.fill = boid.getColour
-    //  gc.fillOval(at.x,at.y,10,10)
       gc.fillPolygon(Array((top.x,top.y),(btRight.x,btRight.y),(btLeft.x,btLeft.y)))
 
-      if drawViewLine then gc.strokeLine(at.x,at.y,dest.x,dest.y)
-      if drawViewCircle then gc.strokeOval(at.x-fov/2,at.y-fov/2,fov,fov)
+      if drawFovLines then   // todo is there a way to make this look nicer? colour??
+        gc.strokeLine(at.x,at.y,rightEnd.x,rightEnd.y)
+        gc.strokeLine(at.x, at.y, leftEnd.x, leftEnd.y)
 
 
   def tick =
@@ -134,12 +137,12 @@ object boidsGUI extends JFXApp3:
     val fovToggler = new Button("Show fov")
     fovToggler.onMouseReleased = (event) =>
       updateLog("Toggled fov")
-      drawViewCircle= !drawViewCircle
+      drawFovLines= !drawFovLines
 
-    val lineToggler = new Button("Show direction")
-    lineToggler.onMouseReleased = (event)=>
+    val lineToggler = new Button("EMPTY")
+    /*lineToggler.onMouseReleased = (event)=>
       updateLog("Toggled direction")
-      drawViewLine= !drawViewLine
+      drawFovLines= !drawFovLines*/
 
     val simulationModeButton = new Button("Free mode")
     simulationModeButton.onMouseReleased = (event)=>
@@ -186,7 +189,7 @@ object boidsGUI extends JFXApp3:
 
     val foodSpawnrateSlider = new Slider(20,300,150):      //todo what values for this
       this.autosize()
-    var foodSpawnrate=foodSpawnrateSlider.value.get().toInt
+    var foodSpawnrate=300-foodSpawnrateSlider.value.get().toInt
     val foodSpawnrateLabel= new Label("Food spawnrate: "+foodSpawnrate.toString.take(4))
     val foodSpawnrateBox = new VBox(foodSpawnrateLabel,foodSpawnrateSlider)
 
