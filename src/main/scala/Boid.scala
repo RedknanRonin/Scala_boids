@@ -40,8 +40,7 @@ case class Point(x:Double, y:Double){
 
 }
 
-class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight:Double = 10,var cohesionWeight: Double = 10,var fov:(Double) = 100.0, var foodWeight:Double = 40) {
-
+class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight:Double = 10,var cohesionWeight: Double = 10,var fov:(Double) = 100.0, var foodWeight:Double = 30, var predatorAversionWeight:Double=40) {
   var maxSpeed:Double =  7
   var minSpeed: Double = 2
   var speed:Double = Random.between(4,maxSpeed)
@@ -51,7 +50,11 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
   def setFov(fovValue:Double) = fov=fovValue
   def setSpeed(b:Double)= this.speed=b
   def setMaxSpeed(v:Double) = maxSpeed=v
+  def setFoodWeight(value:Double)= foodWeight=value
+  def setPredatorAversion(value:Double)=predatorAversionWeight=value
+
   var visibleBoids : Array[Boid] = Array[Boid]()
+  var visiblePredators = Array[Predator]()
   var viewRange = 140
 
   def normalize(value:Double,min:Double,max:Double) = (value-min)/(max-min)
@@ -63,9 +66,19 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
     val b=1-normalize(fov,1,360)
     Color(r,g,b,1)
 
+  def updateVisiblePredators =
+    var tmp = Array[Predator]()
+    val angle = fov / 2
+    val unitVToDirection = pos.unitVectorTowards(velocity)
+    for each <- World.listOfPredators do
+      val unitVToOther = pos.unitVectorTowards(each.pPos)
+      val angleToOther = acos(unitVToDirection.dotProuct(unitVToOther))
+        if pos.distanceTo(each.pPos) < viewRange then
+          if angleToOther < angle then
+            tmp = tmp.appended(each)
+    visiblePredators = tmp
 
-
-  def updateVisibleBoids =    // todo   fov actual foviks pistetulolla ja inverse cosinilla
+  def updateVisibleBoids =
     var tmp=Array[Boid]()
     val angle=fov/2
     val unitVToDirection=pos.unitVectorTowards(velocity)
@@ -133,6 +146,15 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
         World.deleteFood(each)
         reproduce()
 
+  def unitVectorToAvoidPredators: Point =
+    var startPoint = pos
+    var changed=false  //else divides by 0
+    for each <- World.listOfPredators do
+      if visiblePredators.contains(each) then
+        startPoint = startPoint.-(pos.unitVectorTowards(each.pPos))
+        changed = true
+
+    if changed then pos.unitVectorTowards(startPoint) else Point(0,0)
 
 
 
@@ -162,9 +184,10 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
   def applyMovementRules() =
     if visibleBoids.length!=0 then
       val (seperationVector,newSpeed,cohesionVector) = getMovementVectors
+      val avoidPredators=unitVectorToAvoidPredators
       setSpeed(newSpeed)
       enforceSpeedLimits()
-      velocity=velocity.+(cohesionVector.*(cohesionWeight)).+(seperationVector.*(seperationWeight))
+      velocity=velocity.+(cohesionVector.*(cohesionWeight)).+(seperationVector.*(seperationWeight)).+(avoidPredators.*(predatorAversionWeight))
       if pos.distanceTo(velocity)<speed then velocity=velocity.+(pos.unitVectorTowards(velocity).*(speed*2))
 
     else   // Boid moves in a straight line
@@ -176,10 +199,9 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
 
   // Changes the boids location to a new one based on the velocity vector and its speed
   def move() =
-
     updateVisibleBoids
     applyMovementRules()
-    if World.simulationWorldEnabled then moveTowardsFoods
+    if World.simulationWorldEnabled then moveTowardsFoods  //gives error message: mutation occurred during iteration
     if pos.distanceTo(velocity) > 50 then velocity = pos.+((pos.unitVectorTowards(velocity)).*(50))
     val unitVectorScaled=pos.unitVectorTowards(velocity).*(speed)
     pos=pos.+(unitVectorScaled)
@@ -189,16 +211,19 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
   def saveThis()=Boid(pos,velocity,World,seperationWeight,cohesionWeight,fov)
 
   def reproduce()=
-    //evolution things go here
     var newSep=seperationWeight
     var newCoh=cohesionWeight
     var newFov= fov
+    var newFood=foodWeight
+    var newPAversion=predatorAversionWeight
     if World.seed.between(0,1)<World.mutationChance then
-      newSep=newSep+World.seed.between(-10,10)
-      newCoh=newCoh+World.seed.between(-10,10)
-      newFov=newFov+World.seed.between(-20,20)
-    val offspring=Boid(pos.+-(5),velocity.*(-1),World,newSep,newCoh,newFov)      //todo figure out how evolution actually works
-    offspring.limitWeights
+      if World.seed.nextBoolean() then newSep=newSep+World.seed.between(-10,10)
+      if World.seed.nextBoolean() then newCoh=newCoh+World.seed.between(-10,10)
+      if World.seed.nextBoolean() then newFov=newFov+World.seed.between(-20,20)
+      if World.seed.nextBoolean() then newFood=newFood+World.seed.between(-20,20)
+      if World.seed.nextBoolean() then newPAversion = newPAversion + World.seed.between(-20, 20)
+
+    val offspring=Boid(pos.+-(5),velocity.*(-1),World,newSep,newCoh,newFov,newFood,newPAversion)
     World.spawnBoid(offspring)
 
 
@@ -207,8 +232,6 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
   override def toString= s"Location: (${pos.x.round},${pos.y.round}) acceleration: (${velocity.x.round},${velocity.y.round}) speed: ${this.speed}  coh:${cohesionWeight}  sep: ${seperationWeight}  fov: $fov "
 }
 
-// todo: boid eating?, evolution?, reproduction?, seeking food?
-//todo: io
 
 class Food(var pos:Point,World:world){
   def removeIt=World.deleteFood(this)

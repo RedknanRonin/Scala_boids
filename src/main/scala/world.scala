@@ -6,10 +6,11 @@ import scala.util.Random
 class world {
   val windowHeight= 640
   val windowWidth= 740
-  var mutationChance:Double=0
+  var mutationChance:Double=0.1
   val seed= Random(69420)
   var listOfBoids=ArrayBuffer[Boid]()
   var listOfFoods=ArrayBuffer[Food]()
+  var listOfPredators=ArrayBuffer[Predator]()
   
   var simulationWorldEnabled=true
 
@@ -30,6 +31,8 @@ class world {
 
   def deleteBoid(b:Boid) = listOfBoids-=b
   def deleteFood(food: Food) = listOfFoods-=food
+  def deletePredator(p:Predator) =listOfPredators-=p
+  def spawnPredator(p:Predator) = listOfPredators+=p
 
   def tick=
     for each<- listOfBoids do each.move()

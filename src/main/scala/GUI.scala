@@ -50,15 +50,38 @@ object boidsGUI extends JFXApp3:
       WORLD.updateFoodTimer
       for each <- WORLD.listOfFoods do
         drawFood(each)
+      for each <- WORLD.listOfPredators do
+        each.move()
+        drawPredator(each)
+
+
 
   def spawnBoid(boid:Boid) =
     WORLD.spawnBoid(boid)
     drawBoid(boid)
 
-  def drawFood(food:Food)=   //todo: implement food
+  def drawFood(food:Food)=
     val pos=food.pos
     gc.fill=Color.Red
     gc.fillOval(pos.x, pos.y, 10, 10)
+
+  def drawPredator(p:Predator) =
+    val (at, dest, fov) = (p.pPos, p.pVelocity, p.viewRange)
+    val unitVtoDest = at.unitVectorTowards(dest)
+    val top = at.+(unitVtoDest.*(20))
+    val btLeft = at.+(unitVtoDest.perpendicular.*(5))
+    val btRight = at.-(unitVtoDest.perpendicular.*(5))
+    val (leftEnd, rightEnd) = p.calculateFOVEndpoints
+    gc.fill = Color.Red
+    gc.fillPolygon(Array((top.x, top.y), (btRight.x, btRight.y), (btLeft.x, btLeft.y)))
+    gc.fill = Color.Black
+    gc.fillOval(top.x, top.y,3,3)
+
+    if drawFovLines then // todo is there a way to make this look nicer? colour??
+      gc.strokeLine(at.x, at.y, rightEnd.x, rightEnd.y)
+      gc.strokeLine(at.x, at.y, leftEnd.x, leftEnd.y)
+
+
 
 
 
@@ -97,6 +120,8 @@ object boidsGUI extends JFXApp3:
       width = 1100 //values loosely based on golden ratio
       height = 680
       resizable = false
+      gc.fill = Color.Gray
+      gc.fillRect(0,0,WORLD.windowWidth,WORLD.windowHeight)
 
     val firstLog = new Label(""):
       font = Font("System", FontWeight.ExtraBold, 14)
@@ -139,10 +164,15 @@ object boidsGUI extends JFXApp3:
       updateLog("Toggled fov")
       drawFovLines= !drawFovLines
 
-    val lineToggler = new Button("EMPTY")
-    /*lineToggler.onMouseReleased = (event)=>
-      updateLog("Toggled direction")
-      drawFovLines= !drawFovLines*/
+    val spawnPredatorButton = new Button("Spawn predator")
+    spawnPredatorButton.onMouseReleased = (event)=>
+      updateLog("Spawned predator")
+      val at = Point(randomSeed.nextDouble() * 750, randomSeed.nextDouble() * 750)
+      val dest = Point(randomSeed.nextDouble() * 750, randomSeed.nextDouble() * 750)
+      val predator=Predator(at,dest,WORLD,10,10,150)
+      WORLD.spawnPredator(predator)
+      drawPredator(predator)
+
 
     val simulationModeButton = new Button("Free mode")
     simulationModeButton.onMouseReleased = (event)=>
@@ -153,7 +183,7 @@ object boidsGUI extends JFXApp3:
 
 
     val togglers = new HBox(10):
-      children = Array(fovToggler,lineToggler,simulationModeButton)
+      children = Array(fovToggler,spawnPredatorButton,simulationModeButton)
       margin = Insets(5,5,5,5)
 
 
