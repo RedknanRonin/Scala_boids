@@ -8,7 +8,11 @@ import scalafx.scene.control.{Button, ColorPicker, Label, Menu, MenuBar, MenuIte
 import scalafx.scene.layout.{BorderPane, HBox, VBox}
 import scalafx.scene.paint.Color
 import scalafx.scene.text.{Font, FontWeight}
+import scalafx.stage.FileChooser
+import scalafx.stage.FileChooser.ExtensionFilter
 
+import java.io.{File, FileWriter}
+import scala.io.Source
 import scala.math.{abs, pow}
 
 
@@ -41,7 +45,9 @@ object boidsGUI extends JFXApp3:
         gc.strokeLine(at.x,at.y,rightEnd.x,rightEnd.y)
         gc.strokeLine(at.x, at.y, leftEnd.x, leftEnd.y)
 
-  val boidShowcase = Canvas(150, 170)
+  val boidShowcase = Canvas(150, 100)
+
+
 
   def updateStatistics =
     boidShowcase.graphicsContext2D.clearRect(0, 0, 150, 170)
@@ -61,6 +67,9 @@ object boidsGUI extends JFXApp3:
         boidShowcase.graphicsContext2D.fillText(s"Boids: ${WORLD.listOfBoids.length}", 20, 60)
 
   def tick =
+    gc.clearRect(0, 0, canvas.width.value, canvas.height.value)
+    gc.fill = Color.Gray
+    gc.fillRect(0, 0, canvas.width.value, canvas.height.value)
     for each <- WORLD.listOfBoids do
       each.move()
       drawBoid(each)
@@ -72,7 +81,6 @@ object boidsGUI extends JFXApp3:
         each.move()
         drawPredator(each)
     updateStatistics
-
 
 
   def spawnBoid(boid:Boid) =
@@ -94,7 +102,7 @@ object boidsGUI extends JFXApp3:
     gc.fill = Color.Red
     gc.fillPolygon(Array((top.x, top.y), (btRight.x, btRight.y), (btLeft.x, btLeft.y)))
     gc.fill = Color.Black
-    gc.fillOval(top.x, top.y,3,3)
+    gc.fillOval(top.x-1.5, top.y-1.5,3,3)
 
     if drawFovLines then // todo is there a way to make this look nicer? colour??
       gc.strokeLine(at.x, at.y, rightEnd.x, rightEnd.y)
@@ -122,10 +130,7 @@ object boidsGUI extends JFXApp3:
   val timer = AnimationTimer(time => {
     val deltaTime = (time - lastTime)
     lastTime = time
-    gc.clearRect(0,0,canvas.width.value,canvas.height.value)
-    gc.fill = Color.Gray
-    gc.fillRect(0,0,canvas.width.value,canvas.height.value)
-    tick   //tick should utilize deltaTime
+    tick   //tick should utilize deltaTime according to proper game development
 
 
   })
@@ -164,15 +169,52 @@ object boidsGUI extends JFXApp3:
 
     val pauseButton= new ToggleButton("Run")
 
+    def selectFileSave() =
+      val fileChooser = FileChooser()
+      fileChooser.extensionFilters.add(ExtensionFilter("txt", "*.txt"))
+      fileChooser.initialDirectory = new File(".")
+      val fileToSaveTo=fileChooser.showSaveDialog(stage)
+      if fileToSaveTo != null then
+        println(s"Saved to: ${fileToSaveTo.getName}")
+        val fileWriter = new FileWriter(fileToSaveTo)
+        val worldAsString: String = WORLD.worldAsString()
+        fileWriter.write(worldAsString)
+        fileWriter.close()
+
+      else
+        println("No file selected")
+        null
+
     val saveButton = new Button("Save")
     saveButton.onMouseReleased = (event) =>
       updateLog("Saving")
-      printDebug
+      selectFileSave()
 
+    val clearButton = new Button("Clear screen"):
+      this.onMouseReleased = (event) =>
+        WORLD.emptyLists
+        tick
+
+    def selectFile() =
+      val fileChooser = FileChooser()
+      fileChooser.extensionFilters.add(ExtensionFilter("txt","*.txt"))
+      fileChooser.initialDirectory = new File(".")
+      // FileChooser returns a file, or null if the user closed the window without selecting one.
+      val selectedFile = fileChooser.showOpenDialog(stage)
+      if selectedFile != null then
+        updateLog(s"Loaded from: ${selectedFile.getName}")
+        selectedFile
+      else
+        updateLog("No file selected")
+        null
 
     val loadButton = new Button("Load")
     loadButton.onMouseReleased = (event)=>
-      updateLog("Load")
+      val fileToloadFrom:File=selectFile()
+      val source=Source.fromFile(fileToloadFrom)  //todo error handling
+      val string=source.mkString("")
+      source.close()
+      WORLD.decipherStringAndLoad(string)
       tick
 
     val spawnBoids= new Button("Spawn boid")
@@ -211,18 +253,18 @@ object boidsGUI extends JFXApp3:
 
 
 
-    val seperationSlider = new Slider(1,100,30):
+    val seperationSlider = new Slider(1,100,WORLD.seperationSliderState):
       this.autosize()
 
     val avoidanceSliderInBox= new VBox(Label("Avoidance"),seperationSlider)
 
-    val coherenceSlider = new Slider(1,100,20):
+    val coherenceSlider = new Slider(1,100,WORLD.cohesionSliderState):
       this.autosize()
     val coherenceSliderInBox= new VBox(Label("Coherence"),coherenceSlider)
 
 
 
-    val mutationChanceSlider = new Slider(0,1,0.1):
+    val mutationChanceSlider = new Slider(0,1,WORLD.mutationChance):
       this.onMouseReleased =  (event) =>
         WORLD.setMutationChance(this.value.get())
       this.autosize()
@@ -231,7 +273,7 @@ object boidsGUI extends JFXApp3:
     val mutationChanceLabel = new Label("Mutation chance: " + mutationChance)
     val mutationBox = VBox(mutationChanceLabel, mutationChanceSlider)
 
-    val fovSlider= new Slider(1,360,100):
+    val fovSlider= new Slider(1,360,WORLD.fovSliderState):
       this.autosize()
 
     var fov=fovSlider.value.get().round.toString
@@ -240,7 +282,7 @@ object boidsGUI extends JFXApp3:
 
 
 
-    val foodSpawnrateSlider = new Slider(20,300,150):      //todo what values for this
+    val foodSpawnrateSlider = new Slider(20,300,WORLD.foodSpawnInterval):      //todo what values for this
       this.autosize()
     var foodSpawnrate=300-foodSpawnrateSlider.value.get().toInt
     val foodSpawnrateLabel= new Label("Food spawnrate: "+foodSpawnrate.toString.take(4))
@@ -254,7 +296,7 @@ object boidsGUI extends JFXApp3:
       prefHeight = 700
       prefWidth  = 300
       margin = Insets(10,40,10,10)
-      children=Array(HBox(boidShowcase,buttons),togglers,sliders ,logPanel)
+      children=Array(HBox(VBox(boidShowcase,clearButton),buttons),togglers,sliders ,logPanel)
 
 
     val boidWorld = new HBox:
@@ -285,8 +327,8 @@ object boidsGUI extends JFXApp3:
 
     foodSpawnrateSlider.onMouseReleased = (event) =>
       updateLog("Changed food spawnrate")
-      WORLD.setFoodInterval(foodSpawnrateSlider.value.get().toInt)
-      foodSpawnrateLabel.text =("Food spawnrate: "+foodSpawnrateSlider.value.get().toInt)
+      WORLD.setFoodInterval(300-foodSpawnrateSlider.value.get().toInt)
+      foodSpawnrateLabel.text =("Food spawnrate: "+(foodSpawnrateSlider.value.get().toInt))
       WORLD.foodTimer=0
 
 

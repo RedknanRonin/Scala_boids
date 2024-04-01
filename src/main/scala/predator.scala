@@ -134,7 +134,6 @@ class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double 
     moveAcrossFrame()
     incrementLifetimeCounter
 
-
-  override def toString = s"Predator\nLocation: (${pPos.x.round},${pPos.y.round}) acceleration: (${pVelocity.x.round},${pVelocity.y.round}) speed: ${this.speed}  coh:${cohesionWeight}  sep: ${seperationWeight}  fov: $fov "
+  override def toString = s"${pos.x},${pos.y},${velocity.x},${velocity.y},$seperationWeight,$cohesionWeight,$fov"
 
 }

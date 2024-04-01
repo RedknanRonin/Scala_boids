@@ -232,12 +232,12 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
 
 
   // should everything be rendered at the same time? if boids are affected as they go then the changes will affect the movement of others
-  override def toString= s"Location: (${pos.x.round},${pos.y.round}) acceleration: (${velocity.x.round},${velocity.y.round}) speed: ${this.speed}  coh:${cohesionWeight}  sep: ${seperationWeight}  fov: $fov "
+  override def toString= s"${pos.x},${pos.y},${velocity.x},${velocity.y},$seperationWeight,$cohesionWeight,$fov,$foodWeight,$predatorAversionWeight"
 }
 
 
 class Food(var pos:Point,World:world){
   def removeIt=World.deleteFood(this)
 
-  override def toString= s"Pos: ${pos}"
+  override def toString= s"${pos.x},${pos.y}"
 }
