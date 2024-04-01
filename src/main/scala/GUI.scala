@@ -41,6 +41,24 @@ object boidsGUI extends JFXApp3:
         gc.strokeLine(at.x,at.y,rightEnd.x,rightEnd.y)
         gc.strokeLine(at.x, at.y, leftEnd.x, leftEnd.y)
 
+  val boidShowcase = Canvas(150, 170)
+
+  def updateStatistics =
+    boidShowcase.graphicsContext2D.clearRect(0, 0, 150, 170)
+    def totalAmount = (WORLD.listOfBoids.length + WORLD.listOfPredators.length).toFloat
+    if totalAmount!=0 then
+      val boidLength = (WORLD.listOfBoids.length.toFloat / totalAmount)
+      val shrimpLength = 1-boidLength
+        if WORLD.simulationWorldEnabled then
+          boidShowcase.graphicsContext2D.fill = Color.Blue
+          boidShowcase.graphicsContext2D.fillRect(0, 20, 150, 20)
+          boidShowcase.graphicsContext2D.fill = Color.Red
+          boidShowcase.graphicsContext2D.fillRect(150*boidLength, 20, 150*shrimpLength, 20)
+
+          boidShowcase.graphicsContext2D.fillText(s"Boids: ${WORLD.listOfBoids.length}",20,60)
+          boidShowcase.graphicsContext2D.fillText(s"Predators: ${WORLD.listOfPredators.length}", 20, 80)
+      else
+        boidShowcase.graphicsContext2D.fillText(s"Boids: ${WORLD.listOfBoids.length}", 20, 60)
 
   def tick =
     for each <- WORLD.listOfBoids do
@@ -53,6 +71,7 @@ object boidsGUI extends JFXApp3:
       for each <- WORLD.listOfPredators do
         each.move()
         drawPredator(each)
+    updateStatistics
 
 
 
@@ -93,6 +112,9 @@ object boidsGUI extends JFXApp3:
     println("****************************")
     println("FOODS: "+WORLD.listOfFoods.length)
     for eac <- WORLD.listOfFoods do println(eac)
+    println("****************************")
+    for eah <- WORLD.listOfPredators do println(eah)
+
 
 
 
@@ -112,6 +134,7 @@ object boidsGUI extends JFXApp3:
     if paused then
       paused=false
     else paused=true
+
 
 
   def start() =
@@ -222,13 +245,6 @@ object boidsGUI extends JFXApp3:
     var foodSpawnrate=300-foodSpawnrateSlider.value.get().toInt
     val foodSpawnrateLabel= new Label("Food spawnrate: "+foodSpawnrate.toString.take(4))
     val foodSpawnrateBox = new VBox(foodSpawnrateLabel,foodSpawnrateSlider)
-
-
-    val boidShowcase=Canvas(150,170)
-    boidShowcase.graphicsContext2D.fill = Color.Blue
-    boidShowcase.graphicsContext2D.fillRect(0, 0, 150, 170)
-
-
 
 
     val sliders = new VBox(10):

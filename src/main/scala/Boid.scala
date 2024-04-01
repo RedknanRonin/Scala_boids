@@ -60,6 +60,7 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
   def normalize(value:Double,min:Double,max:Double) = (value-min)/(max-min)
 
   def getColour:Color=
+    limitWeights
     val speed10 = speed*36
     val r=1-normalize(seperationWeight+fov,1,460)
     val g=normalize(cohesionWeight,1,100)
@@ -193,6 +194,8 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
     else   // Boid moves in a straight line
       setSpeed((speed+Random.between(-0.2,0.2)))
       enforceSpeedLimits()
+      val avoidPredatorsNoBoids=unitVectorToAvoidPredators
+      velocity=velocity.+(avoidPredatorsNoBoids.*(predatorAversionWeight))
       val unitVectorTowardsVelocity = pos.unitVectorTowards(velocity).+-(World.seed.between(-0.2,0.2))  //adds some noise to movement
       velocity=velocity.+(unitVectorTowardsVelocity.*(speed))
 
@@ -221,7 +224,7 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
       if World.seed.nextBoolean() then newCoh=newCoh+World.seed.between(-10,10)
       if World.seed.nextBoolean() then newFov=newFov+World.seed.between(-20,20)
       if World.seed.nextBoolean() then newFood=newFood+World.seed.between(-20,20)
-      if World.seed.nextBoolean() then newPAversion = newPAversion + World.seed.between(-20, 20)
+      if World.seed.nextBoolean() then newPAversion = newPAversion + World.seed.between(-10, 10)
 
     val offspring=Boid(pos.+-(5),velocity.*(-1),World,newSep,newCoh,newFov,newFood,newPAversion)
     World.spawnBoid(offspring)

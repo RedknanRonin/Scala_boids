@@ -3,13 +3,13 @@ import main.*
 
 import scala.math.acos
 import scala.util.Random
-class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double = 400,cohesionWeight: Double = 10,fov:(Double))
+class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double = 400 ,cohesionWeight: Double = 10,fov:(Double))
   extends Boid(pos, velocity, World , seperationWeight ,cohesionWeight,fov){
 
   //predators can either seek the middle of the group,  or singlular boids
   // aversion to other predators
 
-  maxSpeed=6
+  maxSpeed=5
   minSpeed=3
   var pVelocity=velocity
   var pPos=pos
@@ -61,6 +61,7 @@ class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double 
   }
 
   override def updateVisibleBoids =
+    var speedSum = this.speed
     var tmp=Array[Boid]()
     val angle=fov/2
     val unitVToDirection=pPos.unitVectorTowards(velocity)
@@ -71,29 +72,27 @@ class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double 
       if each.pos != this.pPos then
         if pPos.distanceTo(each.pos) < viewRange then
           if angleToOther<angle then
+            speedSum += each.speed
             tmp=tmp.appended(each)
     visibleBoids=tmp
+    setSpeed(speedSum/visibleBoids.length)
 
   override def getMovementVectors: (Point, Double,Point) =
     val amountOfPredators = visiblePredators.length
-    var speedSum = this.speed
     var pointForSeperation: Point = pPos
     var changed=false
 
     for each <- visiblePredators do
-      speedSum += each.speed
       if pPos.distanceTo(each.pPos)>pFov/speed then
         changed=true
         pointForSeperation = pointForSeperation.-(pPos.unitVectorTowards(each.pPos))
 
     val seperation = if changed then pPos.unitVectorTowards(pointForSeperation) else Point(0,0)
-    val speed1 = speedSum / (amountOfPredators + 1)
-    (seperation, speed1,Point(0,0))
+    (seperation, 0,Point(0,0))
 
   override def applyMovementRules() =
     if visiblePredators.length!=0 then
       val (seperationVector,newSpeed,empty) = getMovementVectors
-      setSpeed(newSpeed)
       enforceSpeedLimits()
       pVelocity=pVelocity.+(seperationVector.*(seperationWeight))
       if pPos.distanceTo(pVelocity)<speed then pVelocity=pVelocity.+(pPos.unitVectorTowards(pVelocity).*(speed*2))
