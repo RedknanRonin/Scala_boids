@@ -7,43 +7,41 @@ class world {
   val windowHeight= 640
   val windowWidth= 740
   var mutationChance:Double=0.3
-  val seed= Random(69420)
+  val seed= Random(69420) // or preferrably System.nanoTime()
   var listOfBoids=ArrayBuffer[Boid]()
   var listOfFoods=ArrayBuffer[Food]()
   var listOfPredators=ArrayBuffer[Predator]()
 
+  // empties lists to clear screen of everything
   def emptyLists=
     listOfFoods=listOfFoods.empty
     listOfBoids=listOfBoids.empty
     listOfPredators=listOfPredators.empty
 
-  var seperationSliderState=30
-  var cohesionSliderState=20
-  var fovSliderState=100
+  var seperationSliderState=5
+  var cohesionSliderState=0.25
+  var fovSliderState=69
   
   var simulationWorldEnabled=true
 
+  //timers for food spawning
   var foodTimer=0
   var foodSpawnInterval = 150
 
   def toggleSimulation=simulationWorldEnabled= !simulationWorldEnabled
   def setMutationChance(v:Double) = mutationChance=v
   def spawnBoid (b:Boid) = listOfBoids=listOfBoids.appended(b)
-  def getBoid(number:Int) =  listOfBoids(number)
   def printBoids = for i <- listOfBoids.indices do println(i +" "+listOfBoids(i))
   def amountOfBoids = listOfBoids.length
   def setFoodInterval(withVal:Int) = foodSpawnInterval=withVal
 
-  def getBoidAt(at:Point) =
-    val boidsWithPos:Map[Point,Boid]=listOfBoids.map(a=> a.pos -> a).toMap  // returns a boid at a given point
-    boidsWithPos.lift(at).get
 
   def deleteBoid(b:Boid) = listOfBoids-=b
   def deleteFood(food: Food) = listOfFoods-=food
   def deletePredator(p:Predator) =listOfPredators-=p
   def spawnPredator(p:Predator) = listOfPredators+=p
 
-  def tick=
+  def tickFromWorld=
     for each<- listOfBoids do each.move()
 
   def updateFoodTimer=
@@ -55,12 +53,13 @@ class world {
   def spawnFood(f:Food) =
     listOfFoods= listOfFoods.appended(f)
 
-  //todo: file format, raw string??
+  // a representation of the current world in a string format
+  // the format is:  boids seperated by ;, predators seperated by ;, foods seperated by ; , simulation enabled, mutation chance, seperation slider value, cohesion slider value, fov slider value, foodspawninterval
   def worldAsString(): String =
     var stringToSave: String = ""
     for each <- listOfBoids do stringToSave += s"$each;"
     stringToSave += "END"
-    for each <- listOfPredators do stringToSave += s"$each;" // these can be empty
+    for each <- listOfPredators do stringToSave += s"$each;"
     stringToSave += "END"
     for each <- listOfFoods do stringToSave+=s"$each;"
     stringToSave += "END"
@@ -77,9 +76,8 @@ class world {
     stringToSave += (foodSpawnInterval)
     stringToSave += "END"
     stringToSave
-    //todo: save into txt file
-    //boids seperated by ;, predators seperated by ;, foods seperated by ; , simulation enabled, mutation chance, seperation slider value, cohesion slider value, fov slider value, foodspawninterval
 
+    // loads a world with given inputs
   def loadWorld(boids:Array[Boid],predators:Array[Predator],foods:Array[Food],simulationEnabled:Boolean,mutationChanceVal:Double,SepSliderVal:Int,
                 cohesionVal:Int,fovVal:Int,foodSpawnVal:Int) =
     emptyLists
@@ -92,9 +90,9 @@ class world {
     cohesionSliderState=cohesionVal
     fovSliderState=fovVal
     foodSpawnInterval=foodSpawnVal
+  
 
-    //Todo break txt file into pieces and pass as var
-
+  // functions to parse strings into Boids, Predators and Foods
   def stringToBoid(input:String)=
     val variablesAsArray=input.split(",")
     Boid(Point(variablesAsArray(0).toDouble,variablesAsArray(1).toDouble),Point(variablesAsArray(2).toDouble,variablesAsArray(3).toDouble),this,variablesAsArray(4).toDouble.toInt,variablesAsArray(5).toDouble,variablesAsArray(6).toDouble,variablesAsArray(7).toDouble,variablesAsArray(8).toDouble)
@@ -107,18 +105,23 @@ class world {
     val variablesAsArray = input.split(",")
     Food(Point(variablesAsArray(0).toDouble,variablesAsArray(1).toDouble),this)
 
-
+  // deciphers world loaded as string and loads it
   def decipherStringAndLoad(inpu:String)=
+    var tbr=""
     val pieces=inpu.split("END")
-    println(inpu.split("END").mkString("        "))
-    val boids= if pieces(0).nonEmpty then for each <-(pieces(0).split(";")) yield stringToBoid(each) else Array[Boid]()
-    val predators=if pieces(1).nonEmpty then for each <-pieces(1).split(";") yield stringToPredator(each) else Array[Predator]()
-    val foods= if pieces(2)!="" then for each <- pieces(2).split(";") yield  stringToFood(each) else Array[Food]()
-    val simulationBool=pieces(3).toBoolean
-    val mutationCh=pieces(4).toDouble
-    val sepSliderState=pieces(5).toInt
-    val cohSliderState=pieces(6).toInt
-    val fovVal=pieces(7).toInt
-    val foodInterval=pieces(8).toInt
-    loadWorld(boids,predators,foods,simulationBool,mutationCh,sepSliderState,cohSliderState,fovVal,foodInterval)
+    if pieces.length==9 then
+      val boids: Array[Boid] = if pieces(0).nonEmpty then for each <- (pieces(0).split(";")) yield stringToBoid(each) else Array[Boid]()
+      val predators: Array[Predator] = if pieces(1).nonEmpty then for each <- pieces(1).split(";") yield stringToPredator(each) else Array[Predator]()
+      val foods: Array[Food] = if pieces(2) != "" then for each <- pieces(2).split(";") yield stringToFood(each) else Array[Food]()
+      val simulationBool: Boolean = pieces(3).toBoolean
+      val mutationCh: Double = pieces(4).toDouble
+      val sepSliderState: Int = pieces(5).toInt
+      val cohSliderState: Int = pieces(6).toInt
+      val fovVal: Int = pieces(7).toInt
+      val foodInterval: Int = pieces(8).toInt
+      loadWorld(boids,predators,foods,simulationBool,mutationCh,sepSliderState,cohSliderState,fovVal,foodInterval)
+      tbr=("Loading worked")
+    else
+      tbr=("Loading failed: Corrupted file")
+    tbr
 }

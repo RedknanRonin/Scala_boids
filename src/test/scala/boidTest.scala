@@ -24,7 +24,7 @@ class boidTest extends AnyFlatSpec with Matchers:
       testWorld.spawnBoid(testBoid)
       testWorld.spawnBoid(otherTestBoid)
       testBoid.setSeperation(100)
-      testWorld.tick
+      testWorld.tickFromWorld
       testBoid.pos.x should be < otherTestBoid.pos.x
       testBoid.pos.y should be < otherTestBoid.pos.y
       otherTestBoid.pos.x shouldNot be (0)
@@ -37,7 +37,7 @@ class boidTest extends AnyFlatSpec with Matchers:
     val otherTestBoid: Boid = Boid(Point(11, 11), Point(12, 12), testWorld)
     testBoid.setSpeed(100)
     otherTestBoid.setSpeed(50)
-    testWorld.tick
+    testWorld.tickFromWorld
     testBoid.setMaxSpeed(100)
     otherTestBoid.setMaxSpeed(100)
     testBoid.speed should be (75)
