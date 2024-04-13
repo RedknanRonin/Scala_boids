@@ -39,10 +39,10 @@ case class Point(x:Double, y:Double){
 
 }
 
-class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight:Double = 10,var cohesionWeight: Double = 10,var fov:(Double) = 100.0, var foodWeight:Double = 10, var predatorAversionWeight:Double=10) {
-  var maxSpeed:Double =  7
+class Boid(var pos:Point, var velocity:Point, World:World, var seperationWeight:Double = 10, var cohesionWeight: Double = 10, var fov:(Double) = 100.0, var foodWeight:Double = 10, var predatorAversionWeight:Double=10) {
+  var maxSpeed:Double =  7    // these are public to allow Predator to extend Boid
   var minSpeed: Double = 2
-  var speed:Double = Random.between(4,maxSpeed)   // the speed of a boid is random when spawning
+  var speed:Double = Random.between(4,maxSpeed)   // the speed of a boid is random when spawning, is public for other boids to read
 
   def setSeperation(value:Double) = seperationWeight=value
   def setCoherence(value:Double) = cohesionWeight= value
@@ -53,7 +53,7 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
   def setPredatorAversion(value:Double)=predatorAversionWeight=value
 
   var visibleBoids : Array[Boid] = Array[Boid]()
-  var visiblePredators = Array[Predator]()
+  var visiblePredators = Array[Predator]()     // these are public to allow predator to extend Boid
   var viewRange = 140
 
   def normalize(value:Double,min:Double,max:Double) = (value-min)/(max-min)  //function to set value between 0 and 1 for colours.
@@ -145,7 +145,7 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
   def moveTowardsFoods=
     for each <- World.listOfFoods do
       if pos.distanceTo(each.pos)<fov then velocity=pos.+(pos.unitVectorTowards(each.pos).*(foodWeight))
-      if pos.distanceTo(each.pos)<2 then
+      if pos.distanceTo(each.pos)<6 then
         World.deleteFood(each)
         scala.util.control.Exception.ignoring(classOf[ConcurrentModificationException]){
         reproduce()}
@@ -162,6 +162,7 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
     if changed then pos.unitVectorTowards(startPoint) else Point(0,0)
 
   // returns a unit vector for cohesion, new value for speed and a seperation vector
+  // Calculating the two (three) movement vectors is done within a simple loop for optimization
   def getMovementVectors: (Point, Double, Point) =
     val amountOfBoids = visibleBoids.length
     var pointForCohesion = pos
@@ -235,8 +236,6 @@ class Boid(var pos:Point, var velocity:Point, World:world , var seperationWeight
 }
 
 
-class Food(var pos:Point,World:world){
-  def removeIt=World.deleteFood(this)
-
+class Food(var pos:Point,World:World){
   override def toString= s"${pos.x},${pos.y}"
 }

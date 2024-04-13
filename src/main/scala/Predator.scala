@@ -3,7 +3,7 @@ import main.*
 
 import scala.math.acos
 import scala.util.Random
-class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double = 10 ,cohesionWeight: Double = 8,fov:(Double))
+class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double = 10, cohesionWeight: Double = 8, fov:(Double))
   extends Boid(pos, velocity, World , seperationWeight ,cohesionWeight,fov){
 
   //predators are much like boids but with some alterations to movement
@@ -109,7 +109,7 @@ class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double 
     if visiblePredators.length!=0 then
       val (seperationVector,zero,cohesionVector) = getMovementVectors
       enforceSpeedLimits()
-      pVelocity=pVelocity.+(seperationVector.*(seperationWeight))//.+((cohesionVector.*(cohesionWeight)))
+      pVelocity=pVelocity.+(seperationVector.*(seperationWeight)).+((cohesionVector.*(cohesionWeight)))
       if pPos.distanceTo(pVelocity)<speed then pVelocity=pVelocity.+(pPos.unitVectorTowards(pVelocity).*(speed*2))
 
     else   // moves in a straight line
@@ -130,7 +130,6 @@ class Predator(pos:Point, velocity:Point, World:world , seperationWeight:Double 
     val offspring = Predator(pPos.+-(5),pVelocity.*(-1), World, newSep, newCoh, newFov)
     offspring.limitWeights
     World.spawnPredator(offspring)
-
   override def moveTowardsFoods =
     for each <- visibleBoids do
       pVelocity = pVelocity.+(pPos.unitVectorTowards(each.pos).*(foodWeight))

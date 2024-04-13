@@ -8,7 +8,7 @@ class boidTest extends AnyFlatSpec with Matchers:
   def test()=
   "boid" should "move correctly without any influences" in
     {
-      val testWorld= world()
+      val testWorld= World()
       val testBoid:Boid=Boid(Point(0,0),Point(5,5),testWorld)
       val destination = Point(1,1)
       testWorld.spawnBoid(testBoid)
@@ -18,7 +18,7 @@ class boidTest extends AnyFlatSpec with Matchers:
 
   it should "move away from other boid when they are close" in
   {
-      val testWorld= world()
+      val testWorld= World()
       val testBoid:Boid=Boid(Point(10,10),Point(11,11),testWorld)
       val otherTestBoid:Boid=Boid(Point(11,11),Point(12,12),testWorld)
       testWorld.spawnBoid(testBoid)
@@ -32,7 +32,7 @@ class boidTest extends AnyFlatSpec with Matchers:
   }
 
   it should "set speed to average of others" in {
-    val testWorld = world()
+    val testWorld = World()
     val testBoid: Boid = Boid(Point(10, 10), Point(11, 11), testWorld)
     val otherTestBoid: Boid = Boid(Point(11, 11), Point(12, 12), testWorld)
     testBoid.setSpeed(100)

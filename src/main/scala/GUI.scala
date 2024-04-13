@@ -1,4 +1,5 @@
 package main
+import main.boidsGUI.start
 import scalafx.animation.AnimationTimer
 import scalafx.application.JFXApp3
 import scalafx.geometry.{Insets, Orientation, Pos}
@@ -16,9 +17,9 @@ import java.util.ConcurrentModificationException
 import scala.io.Source
 
 
-object boidsGUI extends JFXApp3:
 
-  val WORLD = world()
+object boidsGUI extends JFXApp3:
+  val WORLD = World()
   val canvas = Canvas(WORLD.windowWidth, WORLD.windowHeight)
 
   val gc = canvas.graphicsContext2D
@@ -69,20 +70,31 @@ object boidsGUI extends JFXApp3:
         statisticsPanel.graphicsContext2D.fillText(s"Boids: ${WORLD.listOfBoids.length}", 20, 60)
 
   // function used to update position of boids and draw them
+  var listOfFoodsForCurrentTick=WORLD.listOfFoods
+  var listOfBoidsCurrentTick=WORLD.listOfBoids
+  var predatorsCurrentTick=WORLD.listOfPredators
+
   def tick =
+    try{
+    listOfFoodsForCurrentTick = WORLD.listOfFoods
+    listOfBoidsCurrentTick = WORLD.listOfBoids
+    predatorsCurrentTick = WORLD.listOfPredators
     gc.clearRect(0, 0, canvas.width.value, canvas.height.value)
     gc.fill = Color.Gray
     gc.fillRect(0, 0, canvas.width.value, canvas.height.value)
-    for each <- WORLD.listOfBoids do
-      each.move()
-      drawBoid(each)
+    for each <- listOfBoidsCurrentTick do
+        each.move()
+        drawBoid(each)
     if WORLD.simulationWorldEnabled then
       WORLD.updateFoodTimer
-      for each <- WORLD.listOfFoods do
+      for each <- listOfFoodsForCurrentTick do
         drawFood(each)
-      for each <- WORLD.listOfPredators do
-        each.move()
-        drawPredator(each)
+      for each <- predatorsCurrentTick do
+          each.move()
+          drawPredator(each)}
+    catch
+      case _=>   // ignores errors, missing one tick doesn't cause huge errors
+          
     updateStatistics
 
 
@@ -119,10 +131,9 @@ object boidsGUI extends JFXApp3:
   val timer = AnimationTimer(time => {
     val deltaTime = (time - lastTime)
     lastTime = time
-    scala.util.control.Exception.ignoring(classOf[ConcurrentModificationException]) {
       tick   // at high capacity causes some stuttering
-    }
-    
+
+
   })
 
   def pause()= paused = !paused
@@ -158,14 +169,14 @@ object boidsGUI extends JFXApp3:
     val pauseButton= new ToggleButton("Run")
 
     def selectFileSave() =
-      val fileChooser = FileChooser()
-      fileChooser.extensionFilters.add(ExtensionFilter("txt", "*.txt"))
-      fileChooser.initialDirectory = new File(".")
-      val fileToSaveTo=fileChooser.showSaveDialog(stage)
+      val fileChooserForSave = FileChooser()
+      fileChooserForSave.extensionFilters.add(ExtensionFilter("txt", "*.txt"))
+      fileChooserForSave.initialDirectory = new File(".")
+      val fileToSaveTo=fileChooserForSave.showSaveDialog(stage)
       if fileToSaveTo != null then
         updateLog(s"Saved to: ${fileToSaveTo.getName}")
         val fileWriter = new FileWriter(fileToSaveTo)
-        val worldAsString: String = WORLD.worldAsString()
+        val worldAsString: String = FileReading(WORLD).save
         fileWriter.write(worldAsString)
         fileWriter.close()
 
@@ -186,11 +197,11 @@ object boidsGUI extends JFXApp3:
 
 
     def selectFile() =
-      val fileChooser = FileChooser()
-      fileChooser.extensionFilters.add(ExtensionFilter("txt","*.txt"))
-      fileChooser.initialDirectory = new File(".")
+      val fileChooserForLoad = FileChooser()
+      fileChooserForLoad.extensionFilters.add(ExtensionFilter("txt","*.txt"))
+      fileChooserForLoad.initialDirectory = new File(".")
       // FileChooser returns a file, or null if the user closed the window without selecting one.
-      val selectedFile = fileChooser.showOpenDialog(stage)
+      val selectedFile = fileChooserForLoad.showOpenDialog(stage)
       if selectedFile != null then
         updateLog(s"Loaded from: ${selectedFile.getName}")
         selectedFile
@@ -204,8 +215,8 @@ object boidsGUI extends JFXApp3:
       val source=Source.fromFile(fileToloadFrom)
       val string=source.mkString("")
       source.close()
-      updateLog(WORLD.decipherStringAndLoad(string))
-      tick
+      updateLog(FileReading(WORLD).load(string))
+      tick    // draws everything
 
     val spawnBoids= new Button("Spawn boid")
 
@@ -234,8 +245,8 @@ object boidsGUI extends JFXApp3:
       updateLog("Toggled mode")
       WORLD.toggleSimulation
       simulationModeButton.text = if WORLD.simulationWorldEnabled then ("Free mode") else ("Simulation mode")
-    
-    
+
+
     val togglers = new HBox(10):
       children = Array(fovToggler,spawnPredatorButton,simulationModeButton)
       margin = Insets(5,5,5,5)
@@ -335,15 +346,15 @@ object boidsGUI extends JFXApp3:
       updateLog("Changed avoidance")
       for each <- WORLD.listOfBoids do each.setSeperation(seperationSlider.value.get())
 
-    //spawns boid at random location with random direction. Sep, Coh and Fov are gotten from sliders
+    //spawns boid at random location with random direction. Values for Sep, Coh and Fov are from sliders' current positions.
     spawnBoids.onMouseReleased = (event) =>
       updateLog("Spawned boid")
       val point=Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
       val dest= Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
       val aBoid=Boid(point,dest,WORLD,seperationSlider.value.get(),coherenceSlider.value.get(),fovSlider.value.get())
       spawnBoid(aBoid)
-
   end start
 
-
 end boidsGUI
+
+
