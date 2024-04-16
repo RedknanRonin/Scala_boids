@@ -3,8 +3,8 @@ import main.*
 
 import scala.math.acos
 import scala.util.Random
-class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double = 10, cohesionWeight: Double = 8, fov:(Double))
-  extends Boid(pos, velocity, World , seperationWeight ,cohesionWeight,fov){
+class Predator(pos:Point, velocity:Point, world:World, seperationWeight:Double = 10, cohesionWeight: Double = 8, fov:(Double))
+  extends Boid(pos, velocity, world , seperationWeight ,cohesionWeight,fov){
 
   //predators are much like boids but with some alterations to movement
   // they've got their own p(redator)pos and other variables to seperate them from boids?
@@ -25,11 +25,11 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
   def incrementLifetimeCounter =
     lifetimeCounter+=1
     if lifetimeCounter==lifetime then
-      if World.listOfPredators.length!=1 then World.listOfPredators-=this
+      if world.listOfPredators.length!=1 then world.listOfPredators-=this
 
   override def moveAcrossFrame(): Unit = {
-    val maxX = World.windowWidth
-    val maxY = World.windowHeight
+    val maxX = world.windowWidth
+    val maxY = world.windowHeight
 
     if (pPos.x > maxX) then
       pPos = Point(pPos.x - maxX, pPos.y)
@@ -64,7 +64,7 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
     var tmp=Array[Boid]()
     val angle=fov/2
     val unitVToDirection=pPos.unitVectorTowards(pVelocity)
-    for each <- World.listOfBoids do
+    for each <- world.listOfBoids do
       val unitVToOther=pPos.unitVectorTowards(each.pos)
 
       if each.pos != this.pPos then
@@ -80,7 +80,7 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
     var tmp = Array[Predator]()
     val angle = pFov / 2
     val unitVToDirection = pPos.unitVectorTowards(pVelocity)
-    for each <- World.listOfPredators do
+    for each <- world.listOfPredators do
       val unitVToOther = pPos.unitVectorTowards(each.pPos)
       if pPos.distanceTo(each.pPos) < viewRange then
         val angleToOther = acos(unitVToDirection.dotProuct(unitVToOther))
@@ -88,7 +88,7 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
           tmp = tmp.appended(each)
     visiblePredators = tmp
 
-  override def getMovementVectors: (Point, Double,Point) =
+  override def getMovementVectors: (Point, Double,Point,Point) =
     val amountOfPredators = visiblePredators.length
     var pointForSeperation: Point = pPos
     var pointForCohesion = pPos
@@ -102,20 +102,20 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
     val seperation = if changed then pPos.unitVectorTowards(pointForSeperation) else Point(0,0)
     val cohesion = pPos.unitVectorTowards(pointForCohesion./(amountOfPredators+1))
 
-    (seperation, 0,cohesion)
+    (seperation, 0,cohesion,cohesion)
 
 
   override def applyMovementRules() =
     if visiblePredators.length!=0 then
-      val (seperationVector,zero,cohesionVector) = getMovementVectors
+      val (seperationVector,zero,cohesionVector,nothing) = getMovementVectors
       enforceSpeedLimits()
-      pVelocity=pVelocity.+(seperationVector.*(seperationWeight)).+((cohesionVector.*(cohesionWeight)))
+      pVelocity=pVelocity.+(seperationVector.*(seperationWeight))//.+((cohesionVector.*(cohesionWeight)))
       if pPos.distanceTo(pVelocity)<speed then pVelocity=pVelocity.+(pPos.unitVectorTowards(pVelocity).*(speed*2))
 
     else   // moves in a straight line
         setSpeed((speed+Random.between(-0.2,0.2)))
         enforceSpeedLimits()
-        val unitVectorTowardsVelocity = pPos.unitVectorTowards(pVelocity).+-(World.seed.between(-0.2,0.2))  //adds some noise to movement
+        val unitVectorTowardsVelocity = pPos.unitVectorTowards(pVelocity).+-(world.seed.between(-0.2,0.2))  //adds some noise to movement
         pVelocity=pVelocity.+(unitVectorTowardsVelocity.*(speed))
 
 
@@ -123,18 +123,22 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
     var newSep = seperationWeight
     var newCoh = cohesionWeight
     var newFov = fov
-    if World.seed.between(0, 1) < World.mutationChance then
-      if World.seed.nextBoolean() then newSep = newSep + World.seed.between(-10, 10)
-      if World.seed.nextBoolean() then newCoh = newCoh + World.seed.between(-10, 10)
-      if World.seed.nextBoolean() then newFov = newFov + World.seed.between(-20, 20)
-    val offspring = Predator(pPos.+-(5),pVelocity.*(-1), World, newSep, newCoh, newFov)
+    if world.seed.between(0, 1) < world.mutationChance then
+      if world.seed.nextBoolean() then newSep = newSep + world.seed.between(-10, 10)
+      if world.seed.nextBoolean() then newCoh = newCoh + world.seed.between(-10, 10)
+      if world.seed.nextBoolean() then newFov = newFov + world.seed.between(-20, 20)
+    val offspring: Predator = Predator(pPos.+-(5), pVelocity.*(-1), world, newSep, newCoh, newFov)
     offspring.limitWeights
-    World.spawnPredator(offspring)
+    world.spawnPredator(offspring)
+  end reproduce
+
+
+
   override def moveTowardsFoods =
     for each <- visibleBoids do
       pVelocity = pVelocity.+(pPos.unitVectorTowards(each.pos).*(foodWeight))
-      if pPos.distanceTo(each.pos) < 3 then
-        World.deleteBoid(each)
+      if pPos.distanceTo(each.pos) < 5 then
+        world.deleteBoid(each)
         reproduce()
 
 
@@ -143,7 +147,7 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
     updateVisiblePredators
     moveTowardsFoods   //moves towards boids first
     applyMovementRules()  // then avoids others
-    if pPos.distanceTo(pVelocity) > 50 then pVelocity = pPos.+((pPos.unitVectorTowards(pVelocity)).*(50))
+    if pPos.distanceTo(pVelocity) > speed/viewRange then pVelocity = pPos.+((pPos.unitVectorTowards(pVelocity)).*(50))
     val unitVectorScaled=pPos.unitVectorTowards(pVelocity).*(speed)
     pPos=pPos.+(unitVectorScaled)
     moveAcrossFrame()
@@ -152,3 +156,7 @@ class Predator(pos:Point, velocity:Point, World:World, seperationWeight:Double =
   override def toString = s"${pos.x},${pos.y},${velocity.x},${velocity.y},$seperationWeight,$cohesionWeight,$fov"
 
 }
+
+
+
+

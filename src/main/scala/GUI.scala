@@ -18,6 +18,7 @@ import scala.io.Source
 
 
 
+// The program can be ran by running the boidsGUI object
 object boidsGUI extends JFXApp3:
   val WORLD = World()
   val canvas = Canvas(WORLD.windowWidth, WORLD.windowHeight)
@@ -74,26 +75,30 @@ object boidsGUI extends JFXApp3:
   var listOfBoidsCurrentTick=WORLD.listOfBoids
   var predatorsCurrentTick=WORLD.listOfPredators
 
-  def tick =
-    try{
+
+  def tick(move:Boolean) =  // Some ticks don't want to move anything, thus the flag
     listOfFoodsForCurrentTick = WORLD.listOfFoods
     listOfBoidsCurrentTick = WORLD.listOfBoids
     predatorsCurrentTick = WORLD.listOfPredators
     gc.clearRect(0, 0, canvas.width.value, canvas.height.value)
     gc.fill = Color.Gray
     gc.fillRect(0, 0, canvas.width.value, canvas.height.value)
+
+      // Raises ConcurrentModificationException due to appending lists while iterating them
+      // However this seemingly doesn't affect the program much so errors are ignored.
+    try {
     for each <- listOfBoidsCurrentTick do
-        each.move()
+        if move then each.move()
         drawBoid(each)
     if WORLD.simulationWorldEnabled then
       WORLD.updateFoodTimer
       for each <- listOfFoodsForCurrentTick do
         drawFood(each)
       for each <- predatorsCurrentTick do
-          each.move()
-          drawPredator(each)}
+        if move then each.move()
+        drawPredator(each) }
     catch
-      case _=>   // ignores errors, missing one tick doesn't cause huge errors
+      case _=>   // ignores errors, missing one tick doesn't cause huge issues
           
     updateStatistics
 
@@ -126,14 +131,9 @@ object boidsGUI extends JFXApp3:
 
 
 
-  // block used to handle animations
-  var lastTime = System.nanoTime()
+  // block used to handle animations and running the program
   val timer = AnimationTimer(time => {
-    val deltaTime = (time - lastTime)
-    lastTime = time
-      tick   // at high capacity causes some stuttering
-
-
+      tick(true)   // at high capacity causes some stuttering
   })
 
   def pause()= paused = !paused
@@ -193,7 +193,10 @@ object boidsGUI extends JFXApp3:
       this.onMouseReleased = (event) =>
         updateLog("Cleared screen")
         WORLD.emptyLists
-        tick
+        tick(false)
+
+      //moves sliders to correct values after loading
+
 
 
     def selectFile() =
@@ -203,32 +206,23 @@ object boidsGUI extends JFXApp3:
       // FileChooser returns a file, or null if the user closed the window without selecting one.
       val selectedFile = fileChooserForLoad.showOpenDialog(stage)
       if selectedFile != null then
-        updateLog(s"Loaded from: ${selectedFile.getName}")
+        updateLog(s"Loading from: ${selectedFile.getName}")
         selectedFile
       else
         updateLog("No file selected")
         null
 
-    val loadButton = new Button("Load")
-    loadButton.onMouseReleased = (event)=>
-      val fileToloadFrom:File=selectFile()
-      val source=Source.fromFile(fileToloadFrom)
-      val string=source.mkString("")
-      source.close()
-      updateLog(FileReading(WORLD).load(string))
-      tick    // draws everything
+
 
     val spawnBoids= new Button("Spawn boid")
 
-    val buttons = new VBox(20):
-      children=Array(pauseButton,saveButton,loadButton,spawnBoids)
-      margin = Insets(5,5,5,20)
 
 
-    val fovToggler = new Button("Show fov")
+    val fovToggler = new ToggleButton("Show fov")
     fovToggler.onMouseReleased = (event) =>
       updateLog("Toggled fov")
       drawFovLines= !drawFovLines
+      tick(false)
 
     val spawnPredatorButton = new Button("Spawn predator")
     spawnPredatorButton.onMouseReleased = (event)=>
@@ -237,14 +231,14 @@ object boidsGUI extends JFXApp3:
       val dest = Point(randomSeed.nextDouble() * 750, randomSeed.nextDouble() * 750)
       val predator=Predator(at,dest,WORLD,10,8,150)
       WORLD.spawnPredator(predator)
-      drawPredator(predator)
+      if WORLD.simulationWorldEnabled then drawPredator(predator)
 
 
-    val simulationModeButton = new Button("Free mode")
+    val simulationModeButton = new ToggleButton("Simulation mode")
     simulationModeButton.onMouseReleased = (event)=>
       updateLog("Toggled mode")
       WORLD.toggleSimulation
-      simulationModeButton.text = if WORLD.simulationWorldEnabled then ("Free mode") else ("Simulation mode")
+      simulationModeButton.text = if WORLD.simulationWorldEnabled then ("Boid mode") else ("Simulation mode")
 
 
     val togglers = new HBox(10):
@@ -253,16 +247,39 @@ object boidsGUI extends JFXApp3:
 
 
 
-    val seperationSlider = new Slider(0,10,WORLD.seperationSliderState):
+    val seperationSlider = new Slider(0,2,WORLD.seperationSliderState):
       this.autosize()
+
+    val alignmentSlider= new Slider(0,2, WORLD.alignmentSliderState)
 
     val avoidanceSliderInBox= new VBox(Label("Avoidance"),seperationSlider)
 
-    val coherenceSlider = new Slider(0,1,WORLD.cohesionSliderState):
+    val coherenceSlider = new Slider(0,2,WORLD.cohesionSliderState):
       this.autosize()
     val coherenceSliderInBox= new VBox(Label("Coherence"),coherenceSlider)
 
+    def updateSliders =
+      seperationSlider.value = WORLD.seperationSliderState
+      coherenceSlider.value = WORLD.cohesionSliderState
+      alignmentSlider.value = WORLD.alignmentSliderState
 
+    val loadButton = new Button("Load")
+    loadButton.onMouseReleased = (event) =>
+      try {
+        val fileToloadFrom: File = selectFile()
+        val source = Source.fromFile(fileToloadFrom)
+        val string = source.mkString("")
+        source.close()
+        updateLog(FileReading(WORLD).load(string))
+        tick(false) // draws everything
+        updateSliders
+      }
+      catch
+        case _ => updateLog("Loading failed")
+
+    val buttons = new VBox(20):
+      children = Array(pauseButton, saveButton, loadButton, spawnBoids)
+      margin = Insets(5, 5, 5, 20)
 
     val mutationChanceSlider = new Slider(0,1,WORLD.mutationChance):
       this.onMouseReleased =  (event) =>
@@ -282,15 +299,15 @@ object boidsGUI extends JFXApp3:
 
 
 
-    val foodSpawnrateSlider = new Slider(20,250,WORLD.foodSpawnInterval):
+    val foodSpawnrateSlider = new Slider(0,250,WORLD.foodSpawnInterval):
       this.autosize()
     var foodSpawnrate=250-foodSpawnrateSlider.value.get().toInt
-    val foodSpawnrateLabel= new Label("Food spawnrate: "+foodSpawnrate.toString.take(4))
+    val foodSpawnrateLabel= new Label("Food spawnrate")
     val foodSpawnrateBox = new VBox(foodSpawnrateLabel,foodSpawnrateSlider)
 
 
     val sliders = new VBox(10):
-      children=Array(avoidanceSliderInBox, coherenceSliderInBox, mutationBox,foodSpawnrateBox,fovBox)
+      children=Array(avoidanceSliderInBox, coherenceSliderInBox, VBox(Label("Alignement"),alignmentSlider), mutationBox,foodSpawnrateBox,fovBox)
 
     //sidepanel for settings and statistics
     val settingPane= new VBox(20):
@@ -324,10 +341,16 @@ object boidsGUI extends JFXApp3:
       mutationChanceLabel.text = ("Mutation chance: "+mutationChance.toString.take(4))
       updateLog("Changed mutation chance")
 
+    alignmentSlider.onMouseReleased = (event)=>
+        updateLog("Changesd alignment value")
+        WORLD.alignmentSliderState=alignmentSlider.value.get()
+        for each <- WORLD.listOfBoids do each.setAlignment(alignmentSlider.value.get())
+        tick(false)
+
     foodSpawnrateSlider.onMouseReleased = (event) =>
       updateLog("Changed food spawnrate")
       WORLD.setFoodInterval(250-foodSpawnrateSlider.value.get().toInt)
-      foodSpawnrateLabel.text =("Food spawnrate: "+(foodSpawnrateSlider.value.get().toInt))
+      foodSpawnrateLabel.text =("Food spawnrate")
       WORLD.foodTimer=0
 
 
@@ -335,14 +358,17 @@ object boidsGUI extends JFXApp3:
       updateLog("Changed fov")
       fov=fovSlider.value.get().round.toString
       fovLabel.text = ("FOV: "+fov)
+      tick(false) // updates when paused
       for each <- WORLD.listOfBoids do each.setFov(fovSlider.value.get())
 
 
     coherenceSlider.onMouseReleased = (event) =>
+      tick(false) // updates when paused
       for each <- WORLD.listOfBoids do each.setCoherence(coherenceSlider.value.get())
       updateLog("Changed coherence")
 
     seperationSlider.onMouseReleased = (event) =>
+      tick(false) // updates when paused
       updateLog("Changed avoidance")
       for each <- WORLD.listOfBoids do each.setSeperation(seperationSlider.value.get())
 
@@ -353,6 +379,7 @@ object boidsGUI extends JFXApp3:
       val dest= Point(randomSeed.nextDouble()*750,randomSeed.nextDouble()*750)
       val aBoid=Boid(point,dest,WORLD,seperationSlider.value.get(),coherenceSlider.value.get(),fovSlider.value.get())
       spawnBoid(aBoid)
+
   end start
 
 end boidsGUI

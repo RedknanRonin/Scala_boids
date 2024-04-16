@@ -18,11 +18,12 @@ class World {
     listOfBoids=listOfBoids.empty
     listOfPredators=listOfPredators.empty
 
-  var seperationSliderState:Double=5
-  var cohesionSliderState: Double = 0.25
+  var seperationSliderState:Double=0.97
+  var cohesionSliderState: Double = 0.35
+  var alignmentSliderState= 0.40
   var fovSliderState: Int = 69
   
-  var simulationWorldEnabled=true
+  var simulationWorldEnabled=false
 
   //timers for food spawning
   var foodTimer=0
@@ -30,16 +31,15 @@ class World {
 
   def toggleSimulation=simulationWorldEnabled= !simulationWorldEnabled
   def setMutationChance(v:Double) = mutationChance=v
-  def spawnBoid (b:Boid) = listOfBoids=listOfBoids.appended(b)
   def printBoids = for i <- listOfBoids.indices do println(i +" "+listOfBoids(i))
   def amountOfBoids = listOfBoids.length
   def setFoodInterval(withVal:Int) = foodSpawnInterval=withVal
 
-
+  def spawnBoid (b:Boid) = listOfBoids=listOfBoids.appended(b)  // for some reason spawnPredator doesn't work when this is +=
   def deleteBoid(b:Boid) = listOfBoids-=b
   def deleteFood(food: Food) = listOfFoods-=food
   def deletePredator(p:Predator) =listOfPredators-=p
-  def spawnPredator(p:Predator) = listOfPredators+=p
+  def spawnPredator(p:Predator) = listOfPredators+=(p)
 
   def tickFromWorld=
     for each<- listOfBoids do each.move()
@@ -55,7 +55,7 @@ class World {
 
   // a representation of the current world in a string format
   // the format is:  boids seperated by ;, predators seperated by ;, foods seperated by ; , simulation enabled, mutation chance, seperation slider value, cohesion slider value, fov slider value, foodspawninterval
-  def worldAsString(): String =
+  override def toString: String =
     var stringToSave: String = ""
     for each <- listOfBoids do stringToSave += s"$each;"
     stringToSave += "END"
@@ -74,5 +74,7 @@ class World {
     stringToSave += (fovSliderState.toInt)
     stringToSave += "END"
     stringToSave += (foodSpawnInterval)
+    stringToSave += "END"
+    stringToSave += (alignmentSliderState)
     stringToSave
 }
