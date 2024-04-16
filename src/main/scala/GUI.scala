@@ -307,7 +307,7 @@ object boidsGUI extends JFXApp3:
 
 
     val sliders = new VBox(10):
-      children=Array(avoidanceSliderInBox, coherenceSliderInBox, VBox(Label("Alignement"),alignmentSlider), mutationBox,foodSpawnrateBox,fovBox)
+      children=Array(avoidanceSliderInBox, coherenceSliderInBox, VBox(Label("Alignment"),alignmentSlider), mutationBox,foodSpawnrateBox,fovBox)
 
     //sidepanel for settings and statistics
     val settingPane= new VBox(20):
