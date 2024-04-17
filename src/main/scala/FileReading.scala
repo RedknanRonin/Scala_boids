@@ -1,9 +1,6 @@
 package main
 
-
 // class for handling saving and loading.
-
-
 class FileReading(world:World){
   // loads a world with given inputs
   def loadWorld(boids: Array[Boid], predators: Array[Predator], foods: Array[Food], simulationEnabled: Boolean, mutationChanceVal: Double, SepSliderVal: Double,
@@ -58,7 +55,6 @@ class FileReading(world:World){
     }
     catch
       case _ => "Loading failed: Corrupted file"
-
 
   def load(input:String)=decipherStringAndLoad(input)
   def save=world.toString

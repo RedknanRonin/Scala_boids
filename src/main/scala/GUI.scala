@@ -1,11 +1,10 @@
 package main
-import main.boidsGUI.start
 import scalafx.animation.AnimationTimer
 import scalafx.application.JFXApp3
-import scalafx.geometry.{Insets, Orientation, Pos}
+import scalafx.geometry.{Insets, Orientation}
 import scalafx.scene.Scene
 import scalafx.scene.canvas.Canvas
-import scalafx.scene.control.{Button, ColorPicker, Label, Menu, MenuBar, MenuItem, RadioButton, Separator, Slider, Spinner, ToggleButton, ToggleGroup}
+import scalafx.scene.control.{Button, Label, Separator, Slider, ToggleButton}
 import scalafx.scene.layout.{BorderPane, HBox, VBox}
 import scalafx.scene.paint.Color
 import scalafx.scene.text.{Font, FontWeight}
@@ -13,7 +12,6 @@ import scalafx.stage.FileChooser
 import scalafx.stage.FileChooser.ExtensionFilter
 
 import java.io.{File, FileWriter}
-import java.util.ConcurrentModificationException
 import scala.io.Source
 
 
@@ -30,7 +28,7 @@ object boidsGUI extends JFXApp3:
   var allowFoodSpawnsAndSimulation = WORLD.simulationWorldEnabled
 
 
-  // draws a given boid at its pos, boids are triangles and can vary in color.
+  // draws a given boid at its pos. Boids are triangles and can vary in color.
   def drawBoid(boid:Boid) =
       val (at,dest,fov) = (boid.pos,boid.velocity,boid.viewRange)
       val unitVtoDest=at.unitVectorTowards(dest)
@@ -38,13 +36,12 @@ object boidsGUI extends JFXApp3:
       val top=at.+(unitVtoDest.*(20))
       val btLeft=at.+(unitVtoDest.perpendicular.*(5))
       val btRight=at.-(unitVtoDest.perpendicular.*(5))
-
       val (leftEnd,rightEnd) = boid.calculateFOVEndpoints
-
       gc.fill = boid.getColour
       gc.fillPolygon(Array((top.x,top.y),(btRight.x,btRight.y),(btLeft.x,btLeft.y)))
 
       if drawFovLines then
+        gc.stroke=Color.LightGray
         gc.strokeLine(at.x,at.y,rightEnd.x,rightEnd.y)
         gc.strokeLine(at.x, at.y, leftEnd.x, leftEnd.y)
 
@@ -99,7 +96,7 @@ object boidsGUI extends JFXApp3:
         drawPredator(each) }
     catch
       case _=>   // ignores errors, missing one tick doesn't cause huge issues
-          
+
     updateStatistics
 
 

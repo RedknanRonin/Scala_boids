@@ -3,19 +3,19 @@ import main.*
 
 import scala.math.acos
 import scala.util.Random
-class Predator(pos:Point, velocity:Point, world:World, seperationWeight:Double = 10, cohesionWeight: Double = 8, fov:(Double))
+class Predator(pos:Point, velocity:Point, world:World, seperationWeight:Double = 10, cohesionWeight: Double = 8, fov:(Double),var foodweight:Int=5)
   extends Boid(pos, velocity, world , seperationWeight ,cohesionWeight,fov){
 
   //predators are much like boids but with some alterations to movement
   // they've got their own p(redator)pos and other variables to seperate them from boids?
 
-  maxSpeed=5  //max speed is one lower
+  maxSpeed=5  //The max speed of predators is smaller than that of Boids
   minSpeed=3
   var pVelocity=velocity
   var pPos=pos
   var pFov = fov
 
-  //predators have a certain lifetime after which they die
+  //predators have a certain lifetime after which they die unless they are the only predator alive
   var lifetime =  400
   var lifetimeCounter = 0
 
@@ -135,18 +135,20 @@ class Predator(pos:Point, velocity:Point, world:World, seperationWeight:Double =
 
 
   override def moveTowardsFoods =
-    for each <- visibleBoids do
-      pVelocity = pVelocity.+(pPos.unitVectorTowards(each.pos).*(foodWeight))
-      if pPos.distanceTo(each.pos) < 5 then
-        world.deleteBoid(each)
-        reproduce()
+    if visibleBoids.length!=0 then
+      val closest=visibleBoids.minBy(_.pos.distanceTo(pPos))
+        pVelocity = pVelocity.+(pPos.unitVectorTowards(closest.pos).*(foodweight))
+        if pPos.distanceTo(closest.pos) < 5 then
+          world.deleteBoid(closest)
+          reproduce()
 
 
   override def move() =
     updateVisibleBoids
     updateVisiblePredators
-    moveTowardsFoods   //moves towards boids first
+   // moveTowardsFoods   //moves towards boids first
     applyMovementRules()  // then avoids others
+    moveTowardsFoods
     if pPos.distanceTo(pVelocity) > speed/viewRange then pVelocity = pPos.+((pPos.unitVectorTowards(pVelocity)).*(50))
     val unitVectorScaled=pPos.unitVectorTowards(pVelocity).*(speed)
     pPos=pPos.+(unitVectorScaled)
