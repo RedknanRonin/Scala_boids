@@ -1,4 +1,5 @@
-# Matriculation Data Analysis
+# Matriculation Data Visualization with the Boids algorithm
+- a continuation of the project
 
 ## Description
 This project is designed to analyze matriculation exam data from various schools. The data is read from CSV files, processed using Python and Pandas, and stored in a PostgreSQL database. The project includes functionality to calculate the frequency of each grade for each school and visualize the results.
